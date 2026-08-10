@@ -3,12 +3,11 @@ import WakTrainerCoreModels
 import WakTrainerDomainWorkout
 import WakTrainerFeatureTimer
 
-@MainActor
 public struct WorkoutSessionView: View {
     @StateObject private var viewModel: WorkoutSessionViewModel
 
-    public init(viewModel: WorkoutSessionViewModel? = nil) {
-        _viewModel = StateObject(wrappedValue: viewModel ?? WorkoutSessionViewModel())
+    public init(viewModel: WorkoutSessionViewModel = WorkoutSessionViewModel()) {
+        _viewModel = StateObject(wrappedValue: viewModel)
     }
 
     public var body: some View {
