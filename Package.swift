@@ -11,17 +11,17 @@ let package = Package(
         .library(name: "WakTrainerFeatureWorkout", targets: ["WakTrainerFeatureWorkout"])
     ],
     dependencies: [
-        .package(path: "../WakTrainerCoreModels"),
-        .package(path: "../WakTrainerDomainWorkout"),
-        .package(path: "../WakTrainerFeatureTimer")
+        .package(url: "https://github.com/iosdevbyul/WakTrainerCoreModels", branch: "main"),
+        .package(url: "https://github.com/iosdevbyul/WakTrainerDomainWorkout", branch: "main"),
+        .package(url: "https://github.com/iosdevbyul/WakTrainerFeatureTimer", branch: "main")
     ],
     targets: [
         .target(
             name: "WakTrainerFeatureWorkout",
             dependencies: [
-                "WakTrainerCoreModels",
-                "WakTrainerDomainWorkout",
-                "WakTrainerFeatureTimer"
+                .product(name: "WakTrainerCoreModels", package: "WakTrainerCoreModels"),
+                .product(name: "WakTrainerDomainWorkout", package: "WakTrainerDomainWorkout"),
+                .product(name: "WakTrainerFeatureTimer", package: "WakTrainerFeatureTimer")
             ]
         )
     ]
