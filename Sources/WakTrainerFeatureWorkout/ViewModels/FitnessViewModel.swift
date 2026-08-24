@@ -5,62 +5,146 @@
 //  Created by COMATOKI on 2026-08-25.
 //
 
-import SwiftUI
-import HealthKit
+import Foundation
+import Combine
+import CoreLocation
 import WakTrainerCoreModels
+import WakTrainerServiceLocation
 import WakTrainerServiceHealthKit
+import WakTrainerFeatureTimer
 
-@MainActor
-final class FitnessViewModel: ObservableObject {
-    @Published var heartRate: Double = 0
-    @Published var activeCalories: Double = 0
-    @Published var stepCount: Double = 0
-    @Published var distanceMeters: Double = 0
+public final class FitnessViewModel: ObservableObject {
+    // MARK: - Dependencies
+    private let healthKitManager: HealthKitManagerProtocol
+    private let locationManager: LocationManager
+    private let timerManager: TimerManager
+
+    // MARK: - Published Properties (UI Binding)
+    // 1. HealthKit Data
+    @Published public private(set) var heartRate: Double = 0
+    @Published public private(set) var activeCalories: Double = 0
+    @Published public private(set) var stepCount: Double = 0
+    @Published public private(set) var distanceMeters: Double = 0
     
-    // UI 표시용 (킬로미터 단위 변환)
-    var distanceKilometers: Double {
-        distanceMeters / 1000.0
+    // 2. Location Data
+    @Published public private(set) var userLocation: CLLocation?
+    @Published public private(set) var routeCoordinates: [CLLocationCoordinate2D] = []
+    
+    // 3. Timer Data
+    @Published public private(set) var elapsedTime: TimeInterval = 0
+    @Published public private(set) var timerState: TimerState = .idle
+    @Published public private(set) var laps: [LapItem] = []
+
+    // MARK: - Private Properties
+    private var cancellables = Set<AnyCancellable>()
+    private var healthTask: Task<Void, Never>?
+
+    // MARK: - Initializer (DI)
+    public init(
+        healthKitManager: HealthKitManagerProtocol = HealthKitManager(),
+        locationManager: LocationManager = LocationManager(),
+        timerManager: TimerManager = TimerManager()
+    ) {
+        self.healthKitManager = healthKitManager
+        self.locationManager = locationManager
+        self.timerManager = timerManager
+        
+        setupSubscriptions()
     }
+
+    deinit {
+        healthTask?.cancel()
+    }
+
+    // MARK: - Private Setup
+    private func setupSubscriptions() {
+        // LocationManager 상태 구독
+        locationManager.$userLocation
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$userLocation)
+
+        locationManager.$routeCoordinates
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$routeCoordinates)
+
+        // TimerManager 상태 구독
+        timerManager.$elapsedTime
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$elapsedTime)
+
+        timerManager.$state
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$timerState)
+
+        timerManager.$laps
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$laps)
+    }
+
+    // MARK: - User Intent / Actions
     
-    private let healthKitManager: HealthKitManagerProtocol = HealthKitManager()
-    private var observationTask: Task<Void, Never>?
+    /// 운동 시작 (권한 요청 -> 타이머 / GPS / HealthKit 수집 동시 시작)
+    public func startWorkout() async {
+        // 1. 권한 요청
+        _ = try? await healthKitManager.requestAuthorization()
+        locationManager.requestLocationPermission()
 
-    // 1. 권한 요청 및 수집 시작
-    func startMonitoring() {
-        Task {
-            do {
-                let isAuthorized = try await healthKitManager.requestAuthorization()
-                guard isAuthorized else {
-                    print("HealthKit 권한이 거부되었습니다.")
-                    return
-                }
-
-                startObserving()
-            } catch {
-                print("권한 요청 중 오류 발생: \(error)")
-            }
+        // 2. 메인 스레드에서 타이머 & GPS 시작
+        await MainActor.run {
+            timerManager.start()
+            locationManager.startTracking()
         }
-    }
 
-    private func startObserving() {
-        observationTask?.cancel()
-
-        observationTask = Task {
-            let stream = healthKitManager.startObservingData()
+        // 3. HealthKit AsyncStream 관찰 시작
+        healthTask?.cancel()
+        healthTask = Task { [weak self] in
+            guard let self = self else { return }
+            let stream = self.healthKitManager.startObservingData()
             
             for await snapshot in stream {
-                // 실시간 수치 업데이트
-                self.heartRate = snapshot.heartRate
-                self.activeCalories = snapshot.activeCalories
-                self.stepCount = snapshot.stepCount
-                self.distanceMeters = snapshot.distance // 👈 추가된 거리 데이터 수신
+                guard !Task.isCancelled else { break }
+                
+                // UI 갱신 데이터만 메인 스레드로 전송
+                await MainActor.run {
+                    self.heartRate = snapshot.heartRate
+                    self.activeCalories = snapshot.activeCalories
+                    self.stepCount = snapshot.stepCount
+                    self.distanceMeters = snapshot.distance
+                }
             }
         }
     }
 
-    // 2. 수집 중단
-    func stopMonitoring() {
-        observationTask?.cancel()
-        observationTask = nil
+    /// 운동 일시정지
+    public func pauseWorkout() {
+        timerManager.pause()
+    }
+
+    /// 운동 재개
+    public func resumeWorkout() {
+        timerManager.start()
+    }
+
+    /// 운동 종료
+    public func stopWorkout() {
+        timerManager.stop()
+        locationManager.stopTracking()
+        
+        healthTask?.cancel()
+        healthTask = nil
+        
+        Task {
+            await healthKitManager.stopObservingData()
+        }
+    }
+
+    /// 랩 타임 기록
+    public func recordLap() {
+        timerManager.recordLap()
+    }
+
+    // MARK: - Computed Properties for UI
+    public var distanceKilometers: Double {
+        distanceMeters / 1000.0
     }
 }

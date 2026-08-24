@@ -6,7 +6,7 @@
       "location" : "https://github.com/iosdevbyul/WakTrainerCoreModels",
       "state" : {
         "branch" : "main",
-        "revision" : "83718f1b36326539713ea1863e0cf7a69caa1c2f"
+        "revision" : "6c3870c0de8ca18ae0138f3d6f225fa839817bc5"
       }
     },
     {
@@ -24,7 +24,7 @@
       "location" : "https://github.com/iosdevbyul/WakTrainerFeatureTimer",
       "state" : {
         "branch" : "main",
-        "revision" : "03cd6bfa8d4d3c224a2f05580fa77e25cebbcaed"
+        "revision" : "172b3564881b9dcc8674841e88614a4b0b7a99dc"
       }
     },
     {
@@ -42,7 +42,7 @@
       "location" : "https://github.com/iosdevbyul/WakTrainerServiceLocation",
       "state" : {
         "branch" : "main",
-        "revision" : "951e5c2394b86d99cf0daf314a89c06d73bc8781"
+        "revision" : "f2a7d851559e5d5ffe93af396786c667732cf00a"
       }
     }
   ],

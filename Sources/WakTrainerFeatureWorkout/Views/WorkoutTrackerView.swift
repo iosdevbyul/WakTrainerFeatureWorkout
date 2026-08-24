@@ -6,13 +6,14 @@
 //
 
 import SwiftUI
-import HealthKit
 import WakTrainerCoreModels
 
 public struct WorkoutTrackerView: View {
-    @StateObject private var viewModel = FitnessViewModel()
+    @StateObject private var viewModel: FitnessViewModel
     
-    public init() {}
+    public init(viewModel: FitnessViewModel = FitnessViewModel()) {
+        _viewModel = StateObject(wrappedValue: viewModel)
+    }
 
     public var body: some View {
         VStack(spacing: 24) {
@@ -63,7 +64,9 @@ public struct WorkoutTrackerView: View {
             // 제어 버튼 영역
             HStack(spacing: 16) {
                 Button(action: {
-                    viewModel.startMonitoring()
+                    Task {
+                        await viewModel.startWorkout()
+                    }
                 }) {
                     Text("운동 시작")
                         .font(.headline)
@@ -75,7 +78,7 @@ public struct WorkoutTrackerView: View {
                 }
 
                 Button(action: {
-                    viewModel.stopMonitoring()
+                    viewModel.stopWorkout()
                 }) {
                     Text("운동 종료")
                         .font(.headline)
@@ -90,7 +93,7 @@ public struct WorkoutTrackerView: View {
             .padding(.bottom, 20)
         }
         .onDisappear {
-            viewModel.stopMonitoring()
+            viewModel.stopWorkout()
         }
     }
 }
