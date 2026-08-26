@@ -17,7 +17,7 @@ public final class FitnessViewModel: ObservableObject {
     // MARK: - Dependencies
     private let healthKitManager: HealthKitManagerProtocol
     private let locationManager: LocationManager
-    private let timerManager: TimerManager
+    public private(set) var timerManager: TimerManager
 
     // MARK: - Published Properties (UI Binding)
     // 1. HealthKit Data
