@@ -49,10 +49,14 @@ public struct WorkoutFeatureView: View {
 
         case .session(let workout):
             WorkoutSessionView(
-                workout: workout
-            ) { result in
-                coordinator.finishWorkout(result)
-            }
+                workout: workout,
+                onCancel: {
+                    coordinator.returnToSelection()
+                },
+                onFinished: { result in
+                    coordinator.finishWorkout(result)
+                }
+            )
 
         case .completion(let result):
             WorkoutCompletionView(

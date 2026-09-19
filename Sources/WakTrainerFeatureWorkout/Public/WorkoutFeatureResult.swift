@@ -8,8 +8,6 @@
 import Foundation
 import WakTrainerDomainWorkout
 
-import Foundation
-
 public struct WorkoutFeatureResult: Sendable {
 
     public let workoutID: String

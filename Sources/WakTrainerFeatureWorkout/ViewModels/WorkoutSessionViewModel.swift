@@ -18,7 +18,7 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     // MARK: - Workout
 
-    public let workout: WorkoutDefinition
+    let workout: WorkoutDefinition
 
     // MARK: - Dependencies
 
@@ -29,10 +29,10 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     // MARK: - Health Data
 
-    @Published public private(set) var heartRate: Double = 0
-    @Published public private(set) var activeCalories: Double = 0
-    @Published public private(set) var stepCount: Double = 0
-    @Published public private(set) var distanceMeters: Double = 0
+    @Published private(set) var heartRate: Double = 0
+    @Published private(set) var activeCalories: Double = 0
+    @Published private(set) var stepCount: Double = 0
+    @Published private(set) var distanceMeters: Double = 0
 
     // MARK: - Location Data
 
@@ -122,19 +122,27 @@ final class WorkoutSessionViewModel: ObservableObject {
         timerManager.start()
     }
 
-    public func stopWorkout() {
-        timerManager.stop()
+    func finishWorkout() async -> WorkoutFeatureResult {
+        let result = makeResult()
 
-        if workout.requiresLocationTracking {
-            locationManager.stopTracking()
+        await stopWorkout()
+
+        return result
+    }
+
+    private func stopWorkout() async {
+        await MainActor.run {
+            timerManager.stop()
+
+            if workout.requiresLocationTracking {
+                locationManager.stopTracking()
+            }
         }
 
         healthTask?.cancel()
         healthTask = nil
 
-        Task {
-            await healthKitManager.stopObservingData()
-        }
+        await healthKitManager.stopObservingData()
     }
 
     public func recordLap() {
@@ -174,7 +182,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         distanceMeters / 1000.0
     }
     
-    func makeResult() -> WorkoutFeatureResult {
+    private func makeResult() -> WorkoutFeatureResult {
         WorkoutFeatureResult(
             workoutID: workout.id,
             workoutName: workout.name,

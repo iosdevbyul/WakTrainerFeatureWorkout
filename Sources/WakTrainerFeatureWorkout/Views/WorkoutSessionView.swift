@@ -8,13 +8,16 @@ struct WorkoutSessionView: View {
     @StateObject private var viewModel: WorkoutSessionViewModel
 
     private let workout: WorkoutDefinition
+    private let onCancel: () -> Void
     private let onFinished: (WorkoutFeatureResult) -> Void
     
-    public init(
+    init(
         workout: WorkoutDefinition,
+        onCancel: @escaping () -> Void,
         onFinished: @escaping (WorkoutFeatureResult) -> Void
     ) {
         self.workout = workout
+        self.onCancel = onCancel
         self.onFinished = onFinished
 
         _viewModel = StateObject(
@@ -24,7 +27,7 @@ struct WorkoutSessionView: View {
         )
     }
 
-    public var body: some View {
+    var body: some View {
         ZStack {
             sessionBackground
 
@@ -56,6 +59,15 @@ struct WorkoutSessionView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.bottom, 24)
+            }
+        }
+        .toolbar {
+            if viewModel.timerState == .idle {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("뒤로") {
+                        onCancel()
+                    }
+                }
             }
         }
     }
@@ -120,9 +132,10 @@ struct WorkoutSessionView: View {
                 }
 
                 Button {
-                    let result = viewModel.makeResult()
-                    viewModel.stopWorkout()
-                    onFinished(result)
+                    Task {
+                            let result = await viewModel.finishWorkout()
+                            onFinished(result)
+                        }
                 } label: {
                     Text("운동 종료")
                         .font(.headline)
