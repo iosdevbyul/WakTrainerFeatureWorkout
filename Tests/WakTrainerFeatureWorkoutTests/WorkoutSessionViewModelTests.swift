@@ -163,6 +163,44 @@ struct WorkoutSessionViewModelTests {
 
         #expect(timerManager.state == .idle)
     }
+    
+    @Test
+    func pauseAndResumeWorkoutUpdatesTimerState() async {
+        let healthKitManager = MockHealthKitManager(
+            snapshot: HealthSnapshot()
+        )
+
+        let timerManager = TimerManager()
+
+        let workout = WorkoutDefinition(
+            id: "squat",
+            name: "스쿼트",
+            category: .strength,
+            type: .staticWorkout
+        )
+
+        let viewModel = WorkoutSessionViewModel(
+            workout: workout,
+            healthKitManager: healthKitManager,
+            timerManager: timerManager
+        )
+
+        await viewModel.startWorkout()
+
+        #expect(timerManager.state == .running)
+
+        viewModel.pauseWorkout()
+
+        #expect(timerManager.state == .paused)
+
+        viewModel.resumeWorkout()
+
+        #expect(timerManager.state == .running)
+
+        _ = await viewModel.finishWorkout()
+
+        #expect(timerManager.state == .idle)
+    }
 }
 
 private final class MockWorkoutLocationManager:
