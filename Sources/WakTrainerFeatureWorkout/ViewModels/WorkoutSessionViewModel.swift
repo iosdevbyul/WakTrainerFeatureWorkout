@@ -14,6 +14,34 @@ import WakTrainerServiceLocation
 import WakTrainerServiceHealthKit
 import WakTrainerFeatureTimer
 
+protocol WorkoutLocationManaging: AnyObject {
+
+    var userLocationPublisher: AnyPublisher<CLLocation?, Never> { get }
+
+    var routeCoordinatesPublisher: AnyPublisher<
+        [CLLocationCoordinate2D],
+        Never
+    > { get }
+
+    func requestLocationPermission()
+    func startTracking()
+    func stopTracking()
+}
+
+extension LocationManager: WorkoutLocationManaging {
+
+    var userLocationPublisher: AnyPublisher<CLLocation?, Never> {
+        $userLocation.eraseToAnyPublisher()
+    }
+
+    var routeCoordinatesPublisher: AnyPublisher<
+        [CLLocationCoordinate2D],
+        Never
+    > {
+        $routeCoordinates.eraseToAnyPublisher()
+    }
+}
+
 final class WorkoutSessionViewModel: ObservableObject {
 
     // MARK: - Workout
@@ -23,8 +51,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     // MARK: - Dependencies
 
     private let healthKitManager: HealthKitManagerProtocol
-    private let locationManager: LocationManager?
-
+    private let locationManager: (any WorkoutLocationManaging)?
     private(set) var timerManager: TimerManager
 
     // MARK: - Health Data
@@ -55,16 +82,19 @@ final class WorkoutSessionViewModel: ObservableObject {
     init(
         workout: WorkoutDefinition,
         healthKitManager: HealthKitManagerProtocol = HealthKitManager(),
-        locationManager: LocationManager? = nil,
+        locationManager: (any WorkoutLocationManaging)? = nil,
         timerManager: TimerManager = TimerManager()
     ) {
         self.workout = workout
         self.healthKitManager = healthKitManager
 
-        self.locationManager = locationManager
-            ?? (workout.requiresLocationTracking
-                ? LocationManager()
-                : nil)
+        if let locationManager {
+            self.locationManager = locationManager
+        } else if workout.requiresLocationTracking {
+            self.locationManager = LocationManager()
+        } else {
+            self.locationManager = nil
+        }
 
         self.timerManager = timerManager
 
@@ -79,11 +109,11 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     private func setupSubscriptions() {
         if let locationManager {
-            locationManager.$userLocation
+            locationManager.userLocationPublisher
                 .receive(on: DispatchQueue.main)
                 .assign(to: &$userLocation)
 
-            locationManager.$routeCoordinates
+            locationManager.routeCoordinatesPublisher
                 .receive(on: DispatchQueue.main)
                 .assign(to: &$routeCoordinates)
         }
