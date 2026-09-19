@@ -6,94 +6,50 @@
 //
 
 import SwiftUI
-import WakTrainerCoreModels
 
 public struct WorkoutTrackerView: View {
-    @StateObject private var viewModel: FitnessViewModel
-    
-    public init(viewModel: FitnessViewModel = FitnessViewModel()) {
-        _viewModel = StateObject(wrappedValue: viewModel)
+    @ObservedObject private var viewModel: WorkoutSessionViewModel
+
+    public init(viewModel: WorkoutSessionViewModel) {
+        self.viewModel = viewModel
     }
 
     public var body: some View {
-        VStack(spacing: 24) {
-            // 헤더
-            Text("운동 트래킹")
-                .font(.largeTitle)
-                .bold()
-                .padding(.top, 20)
+        VStack(spacing: 16) {
+            MetricCard(
+                title: "심박수",
+                value: "\(Int(viewModel.heartRate))",
+                unit: "BPM",
+                iconName: "heart.fill",
+                iconColor: .red
+            )
 
-            // 데이터 표시 카드 영역
-            VStack(spacing: 16) {
-                MetricCard(
-                    title: "심박수",
-                    value: "\(Int(viewModel.heartRate))",
-                    unit: "BPM",
-                    iconName: "heart.fill",
-                    iconColor: .red
-                )
+            MetricCard(
+                title: "소모 칼로리",
+                value: "\(Int(viewModel.activeCalories))",
+                unit: "kcal",
+                iconName: "flame.fill",
+                iconColor: .orange
+            )
 
-                MetricCard(
-                    title: "소모 칼로리",
-                    value: "\(Int(viewModel.activeCalories))",
-                    unit: "kcal",
-                    iconName: "flame.fill",
-                    iconColor: .orange
-                )
+            MetricCard(
+                title: "걸음 수",
+                value: "\(Int(viewModel.stepCount))",
+                unit: "걸음",
+                iconName: "shoeprints.fill",
+                iconColor: .blue
+            )
 
-                MetricCard(
-                    title: "걸음 수",
-                    value: "\(Int(viewModel.stepCount))",
-                    unit: "걸음",
-                    iconName: "shoeprints.fill",
-                    iconColor: .blue
-                )
-
-                MetricCard(
-                    title: "이동 거리",
-                    value: String(format: "%.2f", viewModel.distanceKilometers),
-                    unit: "km",
-                    iconName: "figure.walk",
-                    iconColor: .green
-                )
-            }
-            .padding(.horizontal)
-
-            Spacer()
-
-            // 제어 버튼 영역
-            HStack(spacing: 16) {
-                Button(action: {
-                    Task {
-                        await viewModel.startWorkout()
-                    }
-                }) {
-                    Text("운동 시작")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.blue)
-                        .cornerRadius(12)
-                }
-
-                Button(action: {
-                    viewModel.stopWorkout()
-                }) {
-                    Text("운동 종료")
-                        .font(.headline)
-                        .foregroundColor(.red)
-                        .frame(maxWidth: .infinity)
-                        .padding()
-                        .background(Color.red.opacity(0.15))
-                        .cornerRadius(12)
-                }
-            }
-            .padding(.horizontal)
-            .padding(.bottom, 20)
-        }
-        .onDisappear {
-            viewModel.stopWorkout()
+            MetricCard(
+                title: "이동 거리",
+                value: String(
+                    format: "%.2f",
+                    viewModel.distanceKilometers
+                ),
+                unit: "km",
+                iconName: "figure.walk",
+                iconColor: .green
+            )
         }
     }
 }
