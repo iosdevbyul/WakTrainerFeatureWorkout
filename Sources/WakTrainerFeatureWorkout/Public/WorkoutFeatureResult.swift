@@ -7,7 +7,7 @@
 
 import Foundation
 
-public struct WorkoutFeatureResult: Sendable {
+struct WorkoutFeatureResult: Sendable {
 
     public let workoutID: String
     public let workoutName: String
@@ -16,7 +16,7 @@ public struct WorkoutFeatureResult: Sendable {
     public let activeCalories: Double
     public let stepCount: Double
 
-    public init(
+    init(
         workoutID: String,
         workoutName: String,
         duration: TimeInterval,
