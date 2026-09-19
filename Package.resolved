@@ -14,8 +14,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/iosdevbyul/WakTrainerDomainWorkout",
       "state" : {
-        "branch" : "refactor/domain-boundaries",
-        "revision" : "cdbde8d34a77746636483eb9a80f3670642e2595"
+        "branch" : "main",
+        "revision" : "866fd8b15d0f8bab8d223396185f1e625be63a32"
       }
     },
     {
