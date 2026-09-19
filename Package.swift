@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "WakTrainerFeatureWorkout",
     platforms: [
-        .iOS(.v14),
+        .iOS(.v17),
         .macOS(.v13)
     ],
     products: [
