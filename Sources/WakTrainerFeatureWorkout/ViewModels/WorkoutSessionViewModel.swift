@@ -25,7 +25,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     private let healthKitManager: HealthKitManagerProtocol
     private let locationManager: LocationManager
 
-    public private(set) var timerManager: TimerManager
+    private(set) var timerManager: TimerManager
 
     // MARK: - Health Data
 
@@ -36,14 +36,14 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     // MARK: - Location Data
 
-    @Published public private(set) var userLocation: CLLocation?
-    @Published public private(set) var routeCoordinates: [CLLocationCoordinate2D] = []
+    @Published private(set) var userLocation: CLLocation?
+    @Published private(set) var routeCoordinates: [CLLocationCoordinate2D] = []
 
     // MARK: - Timer Data
 
-    @Published public private(set) var elapsedTime: TimeInterval = 0
-    @Published public private(set) var timerState: TimerState = .idle
-    @Published public private(set) var laps: [LapItem] = []
+    @Published private(set) var elapsedTime: TimeInterval = 0
+    @Published private(set) var timerState: TimerState = .idle
+    @Published private(set) var laps: [LapItem] = []
 
     // MARK: - Private
 
@@ -52,7 +52,7 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     // MARK: - Initializer
 
-    public init(
+    init(
         workout: WorkoutDefinition,
         healthKitManager: HealthKitManagerProtocol = HealthKitManager(),
         locationManager: LocationManager = LocationManager(),
@@ -96,7 +96,7 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     // MARK: - Workout Actions
 
-    public func startWorkout() async {
+    func startWorkout() async {
         _ = try? await healthKitManager.requestAuthorization()
 
         if workout.requiresLocationTracking {
@@ -114,11 +114,11 @@ final class WorkoutSessionViewModel: ObservableObject {
         startHealthObservation()
     }
 
-    public func pauseWorkout() {
+    func pauseWorkout() {
         timerManager.pause()
     }
 
-    public func resumeWorkout() {
+    func resumeWorkout() {
         timerManager.start()
     }
 
@@ -145,7 +145,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         await healthKitManager.stopObservingData()
     }
 
-    public func recordLap() {
+    func recordLap() {
         timerManager.recordLap()
     }
 
@@ -178,7 +178,7 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     // MARK: - UI Values
 
-    public var distanceKilometers: Double {
+    var distanceKilometers: Double {
         distanceMeters / 1000.0
     }
     

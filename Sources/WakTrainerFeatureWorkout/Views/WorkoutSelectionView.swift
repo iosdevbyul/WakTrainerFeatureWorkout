@@ -21,7 +21,7 @@ struct WorkoutSelectionView: View {
         )
     }
 
-    public var body: some View {
+    var body: some View {
         VStack(spacing: 20) {
             categoryPicker
 

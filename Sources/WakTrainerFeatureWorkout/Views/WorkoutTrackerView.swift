@@ -14,7 +14,7 @@ struct WorkoutTrackerView: View {
         self.viewModel = viewModel
     }
 
-    public var body: some View {
+    var body: some View {
         VStack(spacing: 16) {
             MetricCard(
                 title: "심박수",

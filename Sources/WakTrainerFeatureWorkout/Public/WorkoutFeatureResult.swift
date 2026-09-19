@@ -6,7 +6,6 @@
 //
 
 import Foundation
-import WakTrainerDomainWorkout
 
 public struct WorkoutFeatureResult: Sendable {
 
