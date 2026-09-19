@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct WorkoutFeatureResult: Sendable {
+public struct WorkoutFeatureResult: Sendable {
 
     public let workoutID: String
     public let workoutName: String
