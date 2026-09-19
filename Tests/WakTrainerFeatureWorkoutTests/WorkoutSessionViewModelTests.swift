@@ -10,7 +10,8 @@ import Testing
 import WakTrainerCoreModels
 import WakTrainerDomainWorkout
 import WakTrainerFeatureTimer
-
+import Combine
+import CoreLocation
 @testable import WakTrainerFeatureWorkout
 
 @MainActor
@@ -73,6 +74,93 @@ struct WorkoutSessionViewModelTests {
         #expect(
             healthKitManager.stopObservingCallCount == 1
         )
+    }
+    
+    @Test
+    func dynamicWorkoutStartsAndStopsLocationTracking() async {
+        let healthKitManager = MockHealthKitManager(
+            snapshot: HealthSnapshot()
+        )
+
+        let locationManager = MockWorkoutLocationManager()
+        let timerManager = TimerManager()
+
+        let workout = WorkoutDefinition(
+            id: "running",
+            name: "달리기",
+            category: .cardio,
+            type: .dynamicWorkout
+        )
+
+        let viewModel = WorkoutSessionViewModel(
+            workout: workout,
+            healthKitManager: healthKitManager,
+            locationManager: locationManager,
+            timerManager: timerManager
+        )
+
+        await viewModel.startWorkout()
+
+        #expect(
+            locationManager.requestLocationPermissionCallCount == 1
+        )
+
+        #expect(
+            locationManager.startTrackingCallCount == 1
+        )
+
+        #expect(timerManager.state == .running)
+
+        _ = await viewModel.finishWorkout()
+
+        #expect(
+            locationManager.stopTrackingCallCount == 1
+        )
+
+        #expect(timerManager.state == .idle)
+    }
+}
+
+private final class MockWorkoutLocationManager:
+    WorkoutLocationManaging
+{
+    private let userLocationSubject =
+        CurrentValueSubject<CLLocation?, Never>(nil)
+
+    private let routeCoordinatesSubject =
+        CurrentValueSubject<
+            [CLLocationCoordinate2D],
+            Never
+        >([])
+
+    private(set) var requestLocationPermissionCallCount = 0
+    private(set) var startTrackingCallCount = 0
+    private(set) var stopTrackingCallCount = 0
+
+    var userLocationPublisher: AnyPublisher<
+        CLLocation?,
+        Never
+    > {
+        userLocationSubject.eraseToAnyPublisher()
+    }
+
+    var routeCoordinatesPublisher: AnyPublisher<
+        [CLLocationCoordinate2D],
+        Never
+    > {
+        routeCoordinatesSubject.eraseToAnyPublisher()
+    }
+
+    func requestLocationPermission() {
+        requestLocationPermissionCallCount += 1
+    }
+
+    func startTracking() {
+        startTrackingCallCount += 1
+    }
+
+    func stopTracking() {
+        stopTrackingCallCount += 1
     }
 }
 
