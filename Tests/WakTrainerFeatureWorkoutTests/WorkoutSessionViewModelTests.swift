@@ -119,6 +119,50 @@ struct WorkoutSessionViewModelTests {
 
         #expect(timerManager.state == .idle)
     }
+    
+    @Test
+    func staticWorkoutDoesNotStartLocationTracking() async {
+        let healthKitManager = MockHealthKitManager(
+            snapshot: HealthSnapshot()
+        )
+
+        let locationManager = MockWorkoutLocationManager()
+        let timerManager = TimerManager()
+
+        let workout = WorkoutDefinition(
+            id: "squat",
+            name: "스쿼트",
+            category: .strength,
+            type: .staticWorkout
+        )
+
+        let viewModel = WorkoutSessionViewModel(
+            workout: workout,
+            healthKitManager: healthKitManager,
+            locationManager: locationManager,
+            timerManager: timerManager
+        )
+
+        await viewModel.startWorkout()
+
+        #expect(
+            locationManager.requestLocationPermissionCallCount == 0
+        )
+
+        #expect(
+            locationManager.startTrackingCallCount == 0
+        )
+
+        #expect(timerManager.state == .running)
+
+        _ = await viewModel.finishWorkout()
+
+        #expect(
+            locationManager.stopTrackingCallCount == 0
+        )
+
+        #expect(timerManager.state == .idle)
+    }
 }
 
 private final class MockWorkoutLocationManager:
