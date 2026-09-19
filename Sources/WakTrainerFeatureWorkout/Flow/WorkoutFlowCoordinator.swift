@@ -14,6 +14,7 @@ final class WorkoutFlowCoordinator: ObservableObject {
     enum State {
         case selection
         case session(WorkoutDefinition)
+        case completion(WorkoutFeatureResult)
     }
 
     @Published private(set) var state: State = .selection
@@ -24,5 +25,9 @@ final class WorkoutFlowCoordinator: ObservableObject {
 
     func returnToSelection() {
         state = .selection
+    }
+    
+    func finishWorkout(_ result: WorkoutFeatureResult) {
+        state = .completion(result)
     }
 }

@@ -13,13 +13,18 @@ public struct WorkoutFeatureView: View {
     @StateObject private var coordinator: WorkoutFlowCoordinator
 
     private let fetchWorkoutsUseCase: FetchWorkoutsUseCase
+    private let onFinished: (WorkoutFeatureResult) -> Void
 
-    public init() {
+    public init(
+        onFinished: @escaping (WorkoutFeatureResult) -> Void
+    ) {
         let repository = LocalWorkoutCatalogRepository()
 
         self.fetchWorkoutsUseCase = FetchWorkoutsUseCase(
             repository: repository
         )
+
+        self.onFinished = onFinished
 
         _coordinator = StateObject(
             wrappedValue: WorkoutFlowCoordinator()
@@ -45,7 +50,16 @@ public struct WorkoutFeatureView: View {
         case .session(let workout):
             WorkoutSessionView(
                 workout: workout
-            )
+            ) { result in
+                coordinator.finishWorkout(result)
+            }
+
+        case .completion(let result):
+            WorkoutCompletionView(
+                result: result
+            ) {
+                onFinished(result)
+            }
         }
     }
 }

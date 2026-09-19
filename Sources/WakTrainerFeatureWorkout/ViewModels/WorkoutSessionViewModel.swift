@@ -173,4 +173,14 @@ public final class WorkoutSessionViewModel: ObservableObject {
     public var distanceKilometers: Double {
         distanceMeters / 1000.0
     }
+    
+    public func makeResult() -> WorkoutFeatureResult {
+        WorkoutFeatureResult(
+            workout: workout,
+            duration: elapsedTime,
+            distanceMeters: distanceMeters,
+            activeCalories: activeCalories,
+            stepCount: stepCount
+        )
+    }
 }

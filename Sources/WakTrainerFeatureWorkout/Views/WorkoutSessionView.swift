@@ -8,9 +8,14 @@ public struct WorkoutSessionView: View {
     @StateObject private var viewModel: WorkoutSessionViewModel
 
     private let workout: WorkoutDefinition
-
-    public init(workout: WorkoutDefinition) {
+    private let onFinished: (WorkoutFeatureResult) -> Void
+    
+    public init(
+        workout: WorkoutDefinition,
+        onFinished: @escaping (WorkoutFeatureResult) -> Void
+    ) {
         self.workout = workout
+        self.onFinished = onFinished
 
         _viewModel = StateObject(
             wrappedValue: WorkoutSessionViewModel(
@@ -115,7 +120,9 @@ public struct WorkoutSessionView: View {
                 }
 
                 Button {
+                    let result = viewModel.makeResult()
                     viewModel.stopWorkout()
+                    onFinished(result)
                 } label: {
                     Text("운동 종료")
                         .font(.headline)
