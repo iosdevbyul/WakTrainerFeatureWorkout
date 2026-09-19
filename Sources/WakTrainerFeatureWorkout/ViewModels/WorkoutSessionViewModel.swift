@@ -23,7 +23,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     // MARK: - Dependencies
 
     private let healthKitManager: HealthKitManagerProtocol
-    private let locationManager: LocationManager
+    private let locationManager: LocationManager?
 
     private(set) var timerManager: TimerManager
 
@@ -55,12 +55,17 @@ final class WorkoutSessionViewModel: ObservableObject {
     init(
         workout: WorkoutDefinition,
         healthKitManager: HealthKitManagerProtocol = HealthKitManager(),
-        locationManager: LocationManager = LocationManager(),
+        locationManager: LocationManager? = nil,
         timerManager: TimerManager = TimerManager()
     ) {
         self.workout = workout
         self.healthKitManager = healthKitManager
+
         self.locationManager = locationManager
+            ?? (workout.requiresLocationTracking
+                ? LocationManager()
+                : nil)
+
         self.timerManager = timerManager
 
         setupSubscriptions()
@@ -73,14 +78,15 @@ final class WorkoutSessionViewModel: ObservableObject {
     // MARK: - Setup
 
     private func setupSubscriptions() {
-        locationManager.$userLocation
-            .receive(on: DispatchQueue.main)
-            .assign(to: &$userLocation)
+        if let locationManager {
+            locationManager.$userLocation
+                .receive(on: DispatchQueue.main)
+                .assign(to: &$userLocation)
 
-        locationManager.$routeCoordinates
-            .receive(on: DispatchQueue.main)
-            .assign(to: &$routeCoordinates)
-
+            locationManager.$routeCoordinates
+                .receive(on: DispatchQueue.main)
+                .assign(to: &$routeCoordinates)
+        }
         timerManager.$elapsedTime
             .receive(on: DispatchQueue.main)
             .assign(to: &$elapsedTime)
@@ -100,14 +106,14 @@ final class WorkoutSessionViewModel: ObservableObject {
         _ = try? await healthKitManager.requestAuthorization()
 
         if workout.requiresLocationTracking {
-            locationManager.requestLocationPermission()
+            locationManager?.requestLocationPermission()
         }
 
         await MainActor.run {
             timerManager.start()
 
             if workout.requiresLocationTracking {
-                locationManager.startTracking()
+                locationManager?.startTracking()
             }
         }
 
@@ -135,7 +141,7 @@ final class WorkoutSessionViewModel: ObservableObject {
             timerManager.stop()
 
             if workout.requiresLocationTracking {
-                locationManager.stopTracking()
+                locationManager?.stopTracking()
             }
         }
 
