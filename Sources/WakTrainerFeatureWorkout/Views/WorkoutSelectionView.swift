@@ -6,9 +6,14 @@ public struct WorkoutSelectionView: View {
 
     @StateObject private var viewModel: WorkoutSelectionViewModel
 
-    public init(
-        fetchWorkoutsUseCase: FetchWorkoutsUseCase
+    private let onWorkoutSelected: (WorkoutDefinition) -> Void
+
+    init(
+        fetchWorkoutsUseCase: FetchWorkoutsUseCase,
+        onWorkoutSelected: @escaping (WorkoutDefinition) -> Void
     ) {
+        self.onWorkoutSelected = onWorkoutSelected
+
         _viewModel = StateObject(
             wrappedValue: WorkoutSelectionViewModel(
                 fetchWorkoutsUseCase: fetchWorkoutsUseCase
@@ -17,17 +22,15 @@ public struct WorkoutSelectionView: View {
     }
 
     public var body: some View {
-        NavigationStack {
-            VStack(spacing: 20) {
-                categoryPicker
+        VStack(spacing: 20) {
+            categoryPicker
 
-                content
-            }
-            .padding(.horizontal, 20)
-            .navigationTitle("운동 선택")
-            .task {
-                await viewModel.loadWorkouts()
-            }
+            content
+        }
+        .padding(.horizontal, 20)
+        .navigationTitle("운동 선택")
+        .task {
+            await viewModel.loadWorkouts()
         }
     }
 
@@ -111,15 +114,14 @@ public struct WorkoutSelectionView: View {
 
     private var workoutList: some View {
         List(viewModel.filteredWorkouts) { workout in
-            NavigationLink {
-                WorkoutSessionView(
-                    workout: workout
-                )
+            Button {
+                onWorkoutSelected(workout)
             } label: {
                 WorkoutSelectionRow(
                     workout: workout
                 )
             }
+            .buttonStyle(.plain)
         }
         .listStyle(.plain)
     }
