@@ -2,7 +2,7 @@
 import SwiftUI
 import WakTrainerDomainWorkout
 
-public struct WorkoutSelectionView: View {
+struct WorkoutSelectionView: View {
 
     @StateObject private var viewModel: WorkoutSelectionViewModel
 

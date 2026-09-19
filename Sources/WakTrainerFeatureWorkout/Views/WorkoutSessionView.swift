@@ -4,7 +4,7 @@ import WakTrainerDomainWorkout
 import WakTrainerFeatureTimer
 import WakTrainerServiceLocation
 
-public struct WorkoutSessionView: View {
+struct WorkoutSessionView: View {
     @StateObject private var viewModel: WorkoutSessionViewModel
 
     private let workout: WorkoutDefinition

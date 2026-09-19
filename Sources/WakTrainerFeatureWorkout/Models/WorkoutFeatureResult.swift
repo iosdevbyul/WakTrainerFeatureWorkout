@@ -8,22 +8,27 @@
 import Foundation
 import WakTrainerDomainWorkout
 
+import Foundation
+
 public struct WorkoutFeatureResult: Sendable {
 
-    public let workout: WorkoutDefinition
+    public let workoutID: String
+    public let workoutName: String
     public let duration: TimeInterval
     public let distanceMeters: Double
     public let activeCalories: Double
     public let stepCount: Double
 
     public init(
-        workout: WorkoutDefinition,
+        workoutID: String,
+        workoutName: String,
         duration: TimeInterval,
         distanceMeters: Double,
         activeCalories: Double,
         stepCount: Double
     ) {
-        self.workout = workout
+        self.workoutID = workoutID
+        self.workoutName = workoutName
         self.duration = duration
         self.distanceMeters = distanceMeters
         self.activeCalories = activeCalories

@@ -14,7 +14,7 @@ struct WorkoutCompletionView: View {
                 .font(.largeTitle)
                 .bold()
 
-            Text(result.workout.name)
+            Text(result.workoutName)
                 .font(.title2)
 
             VStack(spacing: 12) {

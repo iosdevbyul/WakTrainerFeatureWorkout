@@ -14,7 +14,7 @@ import WakTrainerServiceLocation
 import WakTrainerServiceHealthKit
 import WakTrainerFeatureTimer
 
-public final class WorkoutSessionViewModel: ObservableObject {
+final class WorkoutSessionViewModel: ObservableObject {
 
     // MARK: - Workout
 
@@ -174,9 +174,10 @@ public final class WorkoutSessionViewModel: ObservableObject {
         distanceMeters / 1000.0
     }
     
-    public func makeResult() -> WorkoutFeatureResult {
+    func makeResult() -> WorkoutFeatureResult {
         WorkoutFeatureResult(
-            workout: workout,
+            workoutID: workout.id,
+            workoutName: workout.name,
             duration: elapsedTime,
             distanceMeters: distanceMeters,
             activeCalories: activeCalories,

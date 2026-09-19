@@ -7,10 +7,10 @@
 
 import SwiftUI
 
-public struct WorkoutTrackerView: View {
+struct WorkoutTrackerView: View {
     @ObservedObject private var viewModel: WorkoutSessionViewModel
 
-    public init(viewModel: WorkoutSessionViewModel) {
+    init(viewModel: WorkoutSessionViewModel) {
         self.viewModel = viewModel
     }
 

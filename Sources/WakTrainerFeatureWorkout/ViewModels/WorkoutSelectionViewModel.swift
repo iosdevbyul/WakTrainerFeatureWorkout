@@ -2,7 +2,7 @@ import Foundation
 import WakTrainerDomainWorkout
 
 @MainActor
-public final class WorkoutSelectionViewModel: ObservableObject {
+final class WorkoutSelectionViewModel: ObservableObject {
 
     @Published public private(set) var workouts: [WorkoutDefinition] = []
     @Published public private(set) var isLoading = false
