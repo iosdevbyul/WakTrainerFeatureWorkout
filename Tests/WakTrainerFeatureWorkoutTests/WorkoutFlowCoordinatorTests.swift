@@ -5,6 +5,7 @@
 //  Created by COMATOKI on 2026-09-19.
 //
 
+import Foundation
 import Testing
 import WakTrainerCoreModels
 import WakTrainerDomainWorkout
@@ -66,30 +67,46 @@ struct WorkoutFlowCoordinatorTests {
     }
 
     @Test
-    func finishWorkoutMovesToCompletion() {
+    func finishWorkoutMovesToCompletionWithSession() {
         let coordinator = WorkoutFlowCoordinator()
 
-        let result = WorkoutFeatureResult(
-            workoutID: "running",
-            workoutName: "달리기",
-            duration: 600,
-            distanceMeters: 2_000,
-            activeCalories: 150,
-            stepCount: 2_500
+        let startDate = Date(
+            timeIntervalSince1970: 1_800_000_000
         )
 
-        coordinator.finishWorkout(result)
+        let session = WorkoutSession(
+            workout: WorkoutIdentity(
+                workoutID: "running",
+                name: "달리기",
+                category: "cardio",
+                type: .dynamicWorkout
+            ),
+            timing: WorkoutTiming(
+                startDate: startDate,
+                endDate: startDate.addingTimeInterval(600),
+                elapsedDuration: 600,
+                activeDuration: 570,
+                pausedDuration: 30
+            ),
+            health: WorkoutHealthData(
+                summary: WorkoutHealthSummary(
+                    activeCalories: 150,
+                    stepCount: 2_500,
+                    distanceMeters: 2_000
+                )
+            )
+        )
 
-        guard case .completion(let completedResult) = coordinator.state else {
+        coordinator.finishWorkout(session)
+
+        guard case .completion(let completedSession) = coordinator.state else {
             Issue.record("Expected state to be completion")
             return
         }
 
-        #expect(completedResult.workoutID == "running")
-        #expect(completedResult.workoutName == "달리기")
-        #expect(completedResult.duration == 600)
-        #expect(completedResult.distanceMeters == 2_000)
-        #expect(completedResult.activeCalories == 150)
-        #expect(completedResult.stepCount == 2_500)
+        #expect(completedSession == session)
+        #expect(completedSession.workout.workoutID == "running")
+        #expect(completedSession.timing.activeDuration == 570)
+        #expect(completedSession.health.summary.distanceMeters == 2_000)
     }
 }
