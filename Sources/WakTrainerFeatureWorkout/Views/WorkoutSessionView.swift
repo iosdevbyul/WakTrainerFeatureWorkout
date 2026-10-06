@@ -51,6 +51,13 @@ struct WorkoutSessionView: View {
                 Spacer()
 
                 VStack(spacing: 16) {
+                    if workout.category == .strength,
+                       viewModel.timerState != .idle {
+                        StrengthSetRecorderView(
+                            viewModel: viewModel
+                        )
+                    }
+
                     WorkoutTrackerView(
                         viewModel: viewModel
                     )
