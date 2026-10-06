@@ -14,6 +14,7 @@ import WakTrainerServiceLocation
 import WakTrainerServiceHealthKit
 import WakTrainerFeatureTimer
 
+@MainActor
 protocol WorkoutLocationManaging: AnyObject {
 
     var userLocationPublisher: AnyPublisher<CLLocation?, Never> { get }
@@ -42,6 +43,7 @@ extension LocationManager: WorkoutLocationManaging {
     }
 }
 
+@MainActor
 final class WorkoutSessionViewModel: ObservableObject {
 
     // MARK: - Workout
