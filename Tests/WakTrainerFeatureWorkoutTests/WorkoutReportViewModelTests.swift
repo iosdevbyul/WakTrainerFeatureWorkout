@@ -68,6 +68,79 @@ struct WorkoutReportViewModelTests {
         #expect(viewModel.report.strength?.totalVolumeKilograms == 640)
     }
 
+
+    @Test("유산소 report는 route 거리와 split을 노출한다")
+    func cardioReportExposesRouteDistanceAndSplits() throws {
+        let start = Date(
+            timeIntervalSince1970: 1_800_000_000
+        )
+
+        let route = [
+            WorkoutRoutePoint(
+                timestamp: start,
+                latitude: 37.5000,
+                longitude: 127.0000,
+                horizontalAccuracy: 5
+            ),
+            WorkoutRoutePoint(
+                timestamp: start.addingTimeInterval(300),
+                latitude: 37.5090,
+                longitude: 127.0000,
+                horizontalAccuracy: 5
+            ),
+            WorkoutRoutePoint(
+                timestamp: start.addingTimeInterval(600),
+                latitude: 37.5180,
+                longitude: 127.0000,
+                horizontalAccuracy: 5
+            )
+        ]
+
+        let session = WorkoutSession(
+            workout: WorkoutIdentity(
+                workoutID: "running",
+                name: "달리기",
+                category: "cardio",
+                type: .dynamicWorkout
+            ),
+            timing: WorkoutTiming(
+                startDate: start,
+                endDate: start.addingTimeInterval(600),
+                elapsedDuration: 600,
+                activeDuration: 600,
+                pausedDuration: 0
+            ),
+            exerciseRecords: [
+                WorkoutExerciseRecord(
+                    exerciseID: "running",
+                    name: "달리기",
+                    kind: .cardio,
+                    startDate: start,
+                    endDate: start.addingTimeInterval(600)
+                )
+            ],
+            route: route
+        )
+
+        let viewModel = WorkoutReportViewModel(
+            session: session
+        )
+
+        let cardio = try #require(
+            viewModel.report.cardio
+        )
+
+        let distance = try #require(
+            cardio.routeDistanceMeters
+        )
+
+        #expect(abs(distance - 2_000) < 20)
+        #expect(cardio.splits.count == 2)
+        #expect(
+            viewModel.session.route == route
+        )
+    }
+
     @Test("maximumHeartRate를 주입하면 heart zone이 생성된다")
     func maximumHeartRateEnablesZones() {
         let start = Date(
