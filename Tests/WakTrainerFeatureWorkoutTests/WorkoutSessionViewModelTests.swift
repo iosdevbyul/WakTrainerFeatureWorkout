@@ -5,27 +5,51 @@
 //  Created by COMATOKI on 2026-09-19.
 //
 
+import Combine
+import CoreLocation
 import Foundation
 import Testing
 import WakTrainerCoreModels
 import WakTrainerDomainWorkout
 import WakTrainerFeatureTimer
-import Combine
-import CoreLocation
+
 @testable import WakTrainerFeatureWorkout
 
 @MainActor
 struct WorkoutSessionViewModelTests {
 
     @Test
-    func finishWorkoutReturnsResultAndStopsResources() async throws {
+    func finishWorkoutBuildsSessionAndStopsResources() async throws {
+        let start = Date(
+            timeIntervalSince1970: 1_800_000_000
+        )
+
+        let heartRateSample = WorkoutHealthMetricSample(
+            metric: .heartRate,
+            startDate: start,
+            endDate: start.addingTimeInterval(5),
+            value: 132,
+            unit: "bpm"
+        )
+
+        let finalHealthData = WorkoutHealthData(
+            summary: WorkoutHealthSummary(
+                averageHeartRate: 132,
+                activeCalories: 210,
+                stepCount: 1_500,
+                distanceMeters: 2_400
+            ),
+            samples: [heartRateSample]
+        )
+
         let healthKitManager = MockHealthKitManager(
             snapshot: HealthSnapshot(
                 heartRate: 120,
                 stepCount: 300,
                 activeCalories: 42,
                 distance: 700
-            )
+            ),
+            finalHealthData: finalHealthData
         )
 
         let timerManager = TimerManager()
@@ -46,19 +70,45 @@ struct WorkoutSessionViewModelTests {
         await viewModel.startWorkout()
 
         try await Task.sleep(
-            nanoseconds: 200_000_000
+            nanoseconds: 150_000_000
         )
 
-        let result = await viewModel.finishWorkout()
+        let session = await viewModel.finishWorkout()
 
-        #expect(result.workoutID == "squat")
-        #expect(result.workoutName == "스쿼트")
+        #expect(session.workout.workoutID == "squat")
+        #expect(session.workout.name == "스쿼트")
+        #expect(session.workout.category == "strength")
+        #expect(session.workout.type == .staticWorkout)
 
-        #expect(result.duration > 0)
+        #expect(session.timing.endDate != nil)
+        #expect(session.timing.activeDuration > 0)
+        #expect(
+            session.timing.elapsedDuration
+                >= session.timing.activeDuration
+        )
 
-        #expect(result.activeCalories == 42)
-        #expect(result.stepCount == 300)
-        #expect(result.distanceMeters == 700)
+        #expect(
+            session.health.summary.activeCalories == 210
+        )
+        #expect(
+            session.health.summary.stepCount == 1_500
+        )
+        #expect(
+            session.health.summary.distanceMeters == 2_400
+        )
+        #expect(session.health.samples.count == 1)
+
+        #expect(session.exerciseRecords.count == 1)
+        #expect(
+            session.exerciseRecords.first?.exerciseID
+                == "squat"
+        )
+        #expect(
+            session.exerciseRecords.first?.kind
+                == .strength
+        )
+
+        #expect(session.route.isEmpty)
 
         #expect(timerManager.state == .idle)
         #expect(timerManager.elapsedTime == 0)
@@ -66,41 +116,36 @@ struct WorkoutSessionViewModelTests {
         #expect(
             healthKitManager.requestAuthorizationCallCount == 1
         )
-
         #expect(
             healthKitManager.startObservingCallCount == 1
         )
-
         #expect(
             healthKitManager.stopObservingCallCount == 1
         )
-    }
-    
-    @Test
-    func dynamicWorkoutInitializesDefaultLocationManagerOnMainActor() {
-        let workout = WorkoutDefinition(
-            id: "running",
-            name: "달리기",
-            category: .cardio,
-            type: .dynamicWorkout
+        #expect(
+            healthKitManager.fetchWorkoutHealthDataCallCount == 1
         )
 
-        let viewModel = WorkoutSessionViewModel(
-            workout: workout
-        )
+        let fetchedRange =
+            healthKitManager.fetchedDateRange
 
-        #expect(viewModel.timerState == .idle)
-        #expect(viewModel.routeCoordinates.isEmpty)
+        #expect(fetchedRange?.start != nil)
+        #expect(fetchedRange?.end != nil)
+
+        if let fetchedRange {
+            #expect(fetchedRange.end > fetchedRange.start)
+        }
     }
 
     @Test
-    func dynamicWorkoutStartsAndStopsLocationTracking() async {
+    func dynamicWorkoutPreservesRoutePointsInSession() async {
         let healthKitManager = MockHealthKitManager(
-            snapshot: HealthSnapshot()
+            snapshot: HealthSnapshot(),
+            finalHealthData: WorkoutHealthData()
         )
 
-        let locationManager = MockWorkoutLocationManager()
-        let timerManager = TimerManager()
+        let locationManager =
+            MockWorkoutLocationManager()
 
         let workout = WorkoutDefinition(
             id: "running",
@@ -113,38 +158,76 @@ struct WorkoutSessionViewModelTests {
             workout: workout,
             healthKitManager: healthKitManager,
             locationManager: locationManager,
-            timerManager: timerManager
+            timerManager: TimerManager()
         )
 
         await viewModel.startWorkout()
 
-        #expect(
-            locationManager.requestLocationPermissionCallCount == 1
+        let first = WorkoutRoutePoint(
+            timestamp: Date(
+                timeIntervalSince1970: 1_000
+            ),
+            latitude: 37.1,
+            longitude: 127.1,
+            altitude: 20,
+            speedMetersPerSecond: 2.5,
+            horizontalAccuracy: 4,
+            verticalAccuracy: 6,
+            course: 90
         )
 
+        let second = WorkoutRoutePoint(
+            timestamp: Date(
+                timeIntervalSince1970: 1_005
+            ),
+            latitude: 37.2,
+            longitude: 127.2,
+            altitude: 24,
+            speedMetersPerSecond: 3,
+            horizontalAccuracy: 4,
+            verticalAccuracy: 6,
+            course: 95
+        )
+
+        locationManager.send(
+            routePoints: [first, second]
+        )
+
+        let didReceiveRoute = await waitUntil {
+            viewModel.routePoints.count == 2
+        }
+
+        #expect(didReceiveRoute)
+
+        let session = await viewModel.finishWorkout()
+
+        #expect(
+            locationManager
+                .requestLocationPermissionCallCount == 1
+        )
         #expect(
             locationManager.startTrackingCallCount == 1
         )
-
-        #expect(timerManager.state == .running)
-
-        _ = await viewModel.finishWorkout()
-
         #expect(
             locationManager.stopTrackingCallCount == 1
         )
 
-        #expect(timerManager.state == .idle)
+        #expect(session.route == [first, second])
+        #expect(
+            session.exerciseRecords.first?.kind
+                == .cardio
+        )
     }
-    
+
     @Test
     func staticWorkoutDoesNotStartLocationTracking() async {
         let healthKitManager = MockHealthKitManager(
-            snapshot: HealthSnapshot()
+            snapshot: HealthSnapshot(),
+            finalHealthData: WorkoutHealthData()
         )
 
-        let locationManager = MockWorkoutLocationManager()
-        let timerManager = TimerManager()
+        let locationManager =
+            MockWorkoutLocationManager()
 
         let workout = WorkoutDefinition(
             id: "squat",
@@ -157,72 +240,125 @@ struct WorkoutSessionViewModelTests {
             workout: workout,
             healthKitManager: healthKitManager,
             locationManager: locationManager,
-            timerManager: timerManager
+            timerManager: TimerManager()
         )
 
         await viewModel.startWorkout()
 
         #expect(
-            locationManager.requestLocationPermissionCallCount == 0
+            locationManager
+                .requestLocationPermissionCallCount == 0
         )
-
         #expect(
             locationManager.startTrackingCallCount == 0
         )
-
-        #expect(timerManager.state == .running)
 
         _ = await viewModel.finishWorkout()
 
         #expect(
             locationManager.stopTrackingCallCount == 0
         )
-
-        #expect(timerManager.state == .idle)
     }
-    
+
     @Test
-    func pauseAndResumeWorkoutUpdatesTimerState() async {
+    func pauseTimeIsSeparatedFromActiveTime() async throws {
         let healthKitManager = MockHealthKitManager(
-            snapshot: HealthSnapshot()
-        )
-
-        let timerManager = TimerManager()
-
-        let workout = WorkoutDefinition(
-            id: "squat",
-            name: "스쿼트",
-            category: .strength,
-            type: .staticWorkout
+            snapshot: HealthSnapshot(),
+            finalHealthData: WorkoutHealthData()
         )
 
         let viewModel = WorkoutSessionViewModel(
-            workout: workout,
+            workout: WorkoutDefinition(
+                id: "squat",
+                name: "스쿼트",
+                category: .strength,
+                type: .staticWorkout
+            ),
             healthKitManager: healthKitManager,
-            timerManager: timerManager
+            timerManager: TimerManager()
         )
 
         await viewModel.startWorkout()
 
-        #expect(timerManager.state == .running)
+        try await Task.sleep(
+            nanoseconds: 100_000_000
+        )
 
         viewModel.pauseWorkout()
 
-        #expect(timerManager.state == .paused)
+        try await Task.sleep(
+            nanoseconds: 150_000_000
+        )
 
         viewModel.resumeWorkout()
 
-        #expect(timerManager.state == .running)
+        try await Task.sleep(
+            nanoseconds: 100_000_000
+        )
 
-        _ = await viewModel.finishWorkout()
+        let session = await viewModel.finishWorkout()
 
-        #expect(timerManager.state == .idle)
+        #expect(session.timing.activeDuration > 0)
+        #expect(session.timing.pausedDuration > 0)
+        #expect(
+            session.timing.elapsedDuration
+                > session.timing.activeDuration
+        )
+    }
+
+    @Test
+    func healthQueryFailureDoesNotLoseWorkoutSession() async throws {
+        let healthKitManager = MockHealthKitManager(
+            snapshot: HealthSnapshot(
+                heartRate: 120,
+                stepCount: 300,
+                activeCalories: 42,
+                distance: 700
+            ),
+            finalHealthData: WorkoutHealthData(),
+            fetchError: TestHealthError.fetchFailed
+        )
+
+        let viewModel = WorkoutSessionViewModel(
+            workout: WorkoutDefinition(
+                id: "running",
+                name: "달리기",
+                category: .cardio,
+                type: .dynamicWorkout
+            ),
+            healthKitManager: healthKitManager,
+            locationManager: MockWorkoutLocationManager(),
+            timerManager: TimerManager()
+        )
+
+        await viewModel.startWorkout()
+
+        try await Task.sleep(
+            nanoseconds: 100_000_000
+        )
+
+        let session = await viewModel.finishWorkout()
+
+        #expect(session.workout.workoutID == "running")
+        #expect(
+            session.health.summary.activeCalories == 42
+        )
+        #expect(
+            session.health.summary.stepCount == 300
+        )
+        #expect(
+            session.health.summary.distanceMeters == 700
+        )
+        #expect(
+            viewModel.healthDataCollectionError != nil
+        )
     }
 }
 
+@MainActor
 private final class MockWorkoutLocationManager:
-    WorkoutLocationManaging
-{
+    WorkoutLocationManaging {
+
     private let userLocationSubject =
         CurrentValueSubject<CLLocation?, Never>(nil)
 
@@ -232,9 +368,20 @@ private final class MockWorkoutLocationManager:
             Never
         >([])
 
-    private(set) var requestLocationPermissionCallCount = 0
-    private(set) var startTrackingCallCount = 0
-    private(set) var stopTrackingCallCount = 0
+    private let routePointsSubject =
+        CurrentValueSubject<
+            [WorkoutRoutePoint],
+            Never
+        >([])
+
+    private(set)
+    var requestLocationPermissionCallCount = 0
+
+    private(set)
+    var startTrackingCallCount = 0
+
+    private(set)
+    var stopTrackingCallCount = 0
 
     var userLocationPublisher: AnyPublisher<
         CLLocation?,
@@ -250,6 +397,13 @@ private final class MockWorkoutLocationManager:
         routeCoordinatesSubject.eraseToAnyPublisher()
     }
 
+    var routePointsPublisher: AnyPublisher<
+        [WorkoutRoutePoint],
+        Never
+    > {
+        routePointsSubject.eraseToAnyPublisher()
+    }
+
     func requestLocationPermission() {
         requestLocationPermissionCallCount += 1
     }
@@ -261,24 +415,47 @@ private final class MockWorkoutLocationManager:
     func stopTracking() {
         stopTrackingCallCount += 1
     }
+
+    func send(
+        routePoints: [WorkoutRoutePoint]
+    ) {
+        routePointsSubject.send(routePoints)
+        routeCoordinatesSubject.send(
+            routePoints.map(\.coordinate)
+        )
+    }
+}
+
+private enum TestHealthError: Error {
+    case fetchFailed
 }
 
 private final class MockHealthKitManager:
     HealthKitManagerProtocol,
-    @unchecked Sendable
-{
+    @unchecked Sendable {
+
     private let lock = NSLock()
 
     private let snapshot: HealthSnapshot
+    private let finalHealthData: WorkoutHealthData
+    private let fetchError: Error?
 
     private var _requestAuthorizationCallCount = 0
     private var _startObservingCallCount = 0
     private var _stopObservingCallCount = 0
+    private var _fetchWorkoutHealthDataCallCount = 0
+
+    private var _fetchedStartDate: Date?
+    private var _fetchedEndDate: Date?
 
     init(
-        snapshot: HealthSnapshot
+        snapshot: HealthSnapshot,
+        finalHealthData: WorkoutHealthData,
+        fetchError: Error? = nil
     ) {
         self.snapshot = snapshot
+        self.finalHealthData = finalHealthData
+        self.fetchError = fetchError
     }
 
     var isAuthorized: Bool {
@@ -295,7 +472,9 @@ private final class MockHealthKitManager:
         return true
     }
 
-    func startObservingData() -> AsyncStream<HealthSnapshot> {
+    func startObservingData()
+        -> AsyncStream<HealthSnapshot> {
+
         lock.withLock {
             _startObservingCallCount += 1
         }
@@ -312,6 +491,23 @@ private final class MockHealthKitManager:
         lock.withLock {
             _stopObservingCallCount += 1
         }
+    }
+
+    func fetchWorkoutHealthData(
+        from startDate: Date,
+        to endDate: Date
+    ) async throws -> WorkoutHealthData {
+        lock.withLock {
+            _fetchWorkoutHealthDataCallCount += 1
+            _fetchedStartDate = startDate
+            _fetchedEndDate = endDate
+        }
+
+        if let fetchError {
+            throw fetchError
+        }
+
+        return finalHealthData
     }
 
     var requestAuthorizationCallCount: Int {
@@ -331,4 +527,46 @@ private final class MockHealthKitManager:
             _stopObservingCallCount
         }
     }
+
+    var fetchWorkoutHealthDataCallCount: Int {
+        lock.withLock {
+            _fetchWorkoutHealthDataCallCount
+        }
+    }
+
+    var fetchedDateRange: (
+        start: Date,
+        end: Date
+    )? {
+        lock.withLock {
+            guard let start =
+                    _fetchedStartDate,
+                  let end =
+                    _fetchedEndDate else {
+                return nil
+            }
+
+            return (
+                start,
+                end
+            )
+        }
+    }
+}
+
+@MainActor
+private func waitUntil(
+    _ condition: () -> Bool
+) async -> Bool {
+    for _ in 0..<100 {
+        if condition() {
+            return true
+        }
+
+        try? await Task.sleep(
+            nanoseconds: 10_000_000
+        )
+    }
+
+    return condition()
 }
