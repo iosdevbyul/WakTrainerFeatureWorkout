@@ -17,7 +17,7 @@ let package = Package(
         ),
         .package(
             url: "https://github.com/iosdevbyul/WakTrainerDomainWorkout",
-            branch: "main"
+            branch: "feat/workout-report"
         ),
         .package(
             url: "https://github.com/iosdevbyul/WakTrainerFeatureTimer",
