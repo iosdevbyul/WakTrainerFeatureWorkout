@@ -77,6 +77,23 @@ struct WorkoutSessionViewModelTests {
     }
     
     @Test
+    func dynamicWorkoutInitializesDefaultLocationManagerOnMainActor() {
+        let workout = WorkoutDefinition(
+            id: "running",
+            name: "달리기",
+            category: .cardio,
+            type: .dynamicWorkout
+        )
+
+        let viewModel = WorkoutSessionViewModel(
+            workout: workout
+        )
+
+        #expect(viewModel.timerState == .idle)
+        #expect(viewModel.routeCoordinates.isEmpty)
+    }
+
+    @Test
     func dynamicWorkoutStartsAndStopsLocationTracking() async {
         let healthKitManager = MockHealthKitManager(
             snapshot: HealthSnapshot()
