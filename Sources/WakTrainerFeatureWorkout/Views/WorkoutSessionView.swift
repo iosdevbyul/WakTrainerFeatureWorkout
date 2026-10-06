@@ -9,12 +9,12 @@ struct WorkoutSessionView: View {
 
     private let workout: WorkoutDefinition
     private let onCancel: () -> Void
-    private let onFinished: (WorkoutFeatureResult) -> Void
+    private let onFinished: (WorkoutSession) -> Void
     
     init(
         workout: WorkoutDefinition,
         onCancel: @escaping () -> Void,
-        onFinished: @escaping (WorkoutFeatureResult) -> Void
+        onFinished: @escaping (WorkoutSession) -> Void
     ) {
         self.workout = workout
         self.onCancel = onCancel
@@ -133,8 +133,8 @@ struct WorkoutSessionView: View {
 
                 Button {
                     Task {
-                            let result = await viewModel.finishWorkout()
-                            onFinished(result)
+                            let session = await viewModel.finishWorkout()
+                            onFinished(session)
                         }
                 } label: {
                     Text("운동 종료")
