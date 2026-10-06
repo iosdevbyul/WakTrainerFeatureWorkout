@@ -14,8 +14,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/iosdevbyul/WakTrainerDomainWorkout",
       "state" : {
-        "branch" : "feat/cardio-route-analysis",
-        "revision" : "8cafd904946d9c8c17faa3a42cc87d16e73ff9ca"
+        "branch" : "main",
+        "revision" : "b46f9776d47b441480b3ef9a046923ecc92642c2"
       }
     },
     {
