@@ -59,6 +59,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     private let healthKitManager: HealthKitManagerProtocol
     private let locationManager: (any WorkoutLocationManaging)?
     private(set) var timerManager: TimerManager
+    private let restTimerManager: TimerManager
 
     // MARK: - Health Data
 
@@ -80,13 +81,18 @@ final class WorkoutSessionViewModel: ObservableObject {
     @Published private(set) var timerState: TimerState = .idle
     @Published private(set) var laps: [LapItem] = []
 
+    // MARK: - Strength Data
+
+    @Published private(set) var strengthSets: [StrengthSetRecord] = []
+    @Published private(set) var isResting = false
+    @Published private(set) var restElapsedTime: TimeInterval = 0
+
     // MARK: - Session State
 
     private var sessionStartDate: Date?
 
     // MARK: - Private
 
-    private var cancellables = Set<AnyCancellable>()
     private var healthTask: Task<Void, Never>?
 
     // MARK: - Initializer
@@ -95,7 +101,8 @@ final class WorkoutSessionViewModel: ObservableObject {
         workout: WorkoutDefinition,
         healthKitManager: HealthKitManagerProtocol = HealthKitManager(),
         locationManager: (any WorkoutLocationManaging)? = nil,
-        timerManager: TimerManager = TimerManager()
+        timerManager: TimerManager = TimerManager(),
+        restTimerManager: TimerManager = TimerManager()
     ) {
         self.workout = workout
         self.healthKitManager = healthKitManager
@@ -109,6 +116,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         }
 
         self.timerManager = timerManager
+        self.restTimerManager = restTimerManager
 
         setupSubscriptions()
     }
@@ -145,6 +153,10 @@ final class WorkoutSessionViewModel: ObservableObject {
         timerManager.$laps
             .receive(on: DispatchQueue.main)
             .assign(to: &$laps)
+
+        restTimerManager.$elapsedTime
+            .receive(on: DispatchQueue.main)
+            .assign(to: &$restElapsedTime)
     }
 
     // MARK: - Workout Actions
@@ -154,7 +166,7 @@ final class WorkoutSessionViewModel: ObservableObject {
             return
         }
 
-        healthDataCollectionError = nil
+        resetSessionState()
 
         _ = try? await healthKitManager.requestAuthorization()
 
@@ -174,10 +186,18 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     func pauseWorkout() {
         timerManager.pause()
+
+        if isResting {
+            restTimerManager.pause()
+        }
     }
 
     func resumeWorkout() {
         timerManager.start()
+
+        if isResting {
+            restTimerManager.start()
+        }
     }
 
     func finishWorkout() async -> WorkoutSession {
@@ -186,6 +206,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         let activeDuration = elapsedTime
 
         let finalRoutePoints = routePoints
+        let finalStrengthSets = strengthSets
 
         let liveActiveCalories = activeCalories
         let liveStepCount = stepCount
@@ -208,11 +229,15 @@ final class WorkoutSessionViewModel: ObservableObject {
             endDate: endDate,
             activeDuration: activeDuration,
             healthData: healthData,
-            routePoints: finalRoutePoints
+            routePoints: finalRoutePoints,
+            strengthSets: finalStrengthSets
         )
     }
 
     private func stopWorkout() async {
+        restTimerManager.stop()
+        isResting = false
+
         timerManager.stop()
 
         if workout.requiresLocationTracking {
@@ -227,6 +252,79 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     func recordLap() {
         timerManager.recordLap()
+    }
+
+    // MARK: - Strength Recording
+
+    @discardableResult
+    func recordStrengthSet(
+        weightKilograms: Double,
+        repetitions: Int,
+        isWarmup: Bool = false
+    ) -> Bool {
+        guard workout.category == .strength,
+              timerState == .running,
+              !isResting,
+              weightKilograms >= 0,
+              repetitions > 0 else {
+            return false
+        }
+
+        let now = Date()
+
+        strengthSets.append(
+            StrengthSetRecord(
+                setNumber: strengthSets.count + 1,
+                weightKilograms: weightKilograms,
+                repetitions: repetitions,
+                endDate: now,
+                isWarmup: isWarmup,
+                isCompleted: true
+            )
+        )
+
+        restTimerManager.stop()
+        restTimerManager.start()
+        isResting = true
+
+        return true
+    }
+
+    @discardableResult
+    func finishRestAndStartNextSet() -> Bool {
+        guard workout.category == .strength,
+              isResting,
+              !strengthSets.isEmpty else {
+            return false
+        }
+
+        let completedRestDuration = restElapsedTime
+
+        restTimerManager.stop()
+
+        strengthSets[
+            strengthSets.index(before: strengthSets.endIndex)
+        ].restDuration = completedRestDuration
+
+        isResting = false
+
+        return true
+    }
+
+    var nextStrengthSetNumber: Int {
+        strengthSets.count + 1
+    }
+
+    var lastStrengthSet: StrengthSetRecord? {
+        strengthSets.last
+    }
+
+    private func resetSessionState() {
+        healthDataCollectionError = nil
+
+        restTimerManager.stop()
+        isResting = false
+        strengthSets.removeAll()
     }
 
     // MARK: - Health Observation
@@ -321,7 +419,8 @@ final class WorkoutSessionViewModel: ObservableObject {
         endDate: Date,
         activeDuration: TimeInterval,
         healthData: WorkoutHealthData,
-        routePoints: [WorkoutRoutePoint]
+        routePoints: [WorkoutRoutePoint],
+        strengthSets: [StrengthSetRecord]
     ) -> WorkoutSession {
         let elapsedDuration = max(
             0,
@@ -358,7 +457,10 @@ final class WorkoutSessionViewModel: ObservableObject {
                 ? .strength
                 : .cardio,
             startDate: startDate,
-            endDate: endDate
+            endDate: endDate,
+            strengthSets: workout.category == .strength
+                ? strengthSets
+                : []
         )
 
         return WorkoutSession(
