@@ -25,6 +25,31 @@ struct WorkoutFlowCoordinatorTests {
         }
     }
 
+
+    @Test
+    func initialWorkoutStartsInSessionState() {
+        let workout = WorkoutDefinition(
+            id: "running",
+            name: "달리기",
+            category: .cardio,
+            type: .dynamicWorkout
+        )
+
+        let coordinator = WorkoutFlowCoordinator(
+            initialWorkout: workout
+        )
+
+        guard case .session(let selectedWorkout) =
+                coordinator.state else {
+            Issue.record(
+                "Expected initial state to be session"
+            )
+            return
+        }
+
+        #expect(selectedWorkout == workout)
+    }
+
     @Test
     func selectWorkoutMovesToSession() {
         let coordinator = WorkoutFlowCoordinator()

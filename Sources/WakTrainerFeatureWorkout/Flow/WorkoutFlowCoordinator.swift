@@ -18,7 +18,17 @@ final class WorkoutFlowCoordinator: ObservableObject {
         case completion(WorkoutSession)
     }
 
-    @Published private(set) var state: State = .selection
+    @Published private(set) var state: State
+
+    init(
+        initialWorkout: WorkoutDefinition? = nil
+    ) {
+        if let initialWorkout {
+            state = .session(initialWorkout)
+        } else {
+            state = .selection
+        }
+    }
 
     func selectWorkout(_ workout: WorkoutDefinition) {
         state = .session(workout)

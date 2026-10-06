@@ -8,14 +8,16 @@ final class WorkoutSelectionViewModel: ObservableObject {
     @Published private(set) var isLoading = false
     @Published private(set) var errorMessage: String?
 
-    @Published var selectedCategory: WorkoutCategory = .strength
+    @Published var selectedCategory: WorkoutCategory
 
     private let fetchWorkoutsUseCase: FetchWorkoutsUseCase
 
     init(
-        fetchWorkoutsUseCase: FetchWorkoutsUseCase
+        fetchWorkoutsUseCase: FetchWorkoutsUseCase,
+        initialCategory: WorkoutCategory = .strength
     ) {
         self.fetchWorkoutsUseCase = fetchWorkoutsUseCase
+        self.selectedCategory = initialCategory
     }
 
     var filteredWorkouts: [WorkoutDefinition] {

@@ -7,16 +7,21 @@ struct WorkoutSelectionView: View {
     @StateObject private var viewModel: WorkoutSelectionViewModel
 
     private let onWorkoutSelected: (WorkoutDefinition) -> Void
+    private let onCancel: (() -> Void)?
 
     init(
         fetchWorkoutsUseCase: FetchWorkoutsUseCase,
+        initialCategory: WorkoutCategory = .strength,
+        onCancel: (() -> Void)? = nil,
         onWorkoutSelected: @escaping (WorkoutDefinition) -> Void
     ) {
         self.onWorkoutSelected = onWorkoutSelected
+        self.onCancel = onCancel
 
         _viewModel = StateObject(
             wrappedValue: WorkoutSelectionViewModel(
-                fetchWorkoutsUseCase: fetchWorkoutsUseCase
+                fetchWorkoutsUseCase: fetchWorkoutsUseCase,
+                initialCategory: initialCategory
             )
         )
     }
@@ -29,6 +34,17 @@ struct WorkoutSelectionView: View {
         }
         .padding(.horizontal, 20)
         .navigationTitle("운동 선택")
+        .toolbar {
+            if let onCancel {
+                ToolbarItem(
+                    placement: .topBarLeading
+                ) {
+                    Button("닫기") {
+                        onCancel()
+                    }
+                }
+            }
+        }
         .task {
             await viewModel.loadWorkouts()
         }
