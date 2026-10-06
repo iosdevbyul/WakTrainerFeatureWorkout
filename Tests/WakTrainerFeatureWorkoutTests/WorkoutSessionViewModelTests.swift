@@ -381,11 +381,17 @@ struct WorkoutSessionViewModelTests {
         )
 
         #expect(firstRecorded)
+
+        let firstSet =
+            try #require(
+                viewModel.strengthSets.first
+            )
+
         #expect(viewModel.strengthSets.count == 1)
-        #expect(viewModel.strengthSets[0].setNumber == 1)
-        #expect(viewModel.strengthSets[0].weightKilograms == 80)
-        #expect(viewModel.strengthSets[0].repetitions == 8)
-        #expect(viewModel.strengthSets[0].volumeKilograms == 640)
+        #expect(firstSet.setNumber == 1)
+        #expect(firstSet.weightKilograms == 80)
+        #expect(firstSet.repetitions == 8)
+        #expect(firstSet.volumeKilograms == 640)
         #expect(viewModel.isResting)
 
         let duplicateDuringRest =
@@ -405,8 +411,14 @@ struct WorkoutSessionViewModelTests {
 
         #expect(didFinishRest)
         #expect(!viewModel.isResting)
+
+        let restedFirstSet =
+            try #require(
+                viewModel.strengthSets.first
+            )
+
         #expect(
-            (viewModel.strengthSets[0].restDuration ?? 0)
+            (restedFirstSet.restDuration ?? 0)
                 > 0
         )
 
@@ -423,16 +435,32 @@ struct WorkoutSessionViewModelTests {
         let session = await viewModel.finishWorkout()
 
         let storedSets =
-            session.exerciseRecords.first?.strengthSets
+            try #require(
+                session
+                    .exerciseRecords
+                    .first?
+                    .strengthSets
+            )
 
-        #expect(storedSets?.count == 2)
-        #expect(storedSets?[0].weightKilograms == 80)
-        #expect(storedSets?[0].repetitions == 8)
+        #expect(storedSets.count == 2)
+
+        let storedFirstSet =
+            try #require(
+                storedSets.first
+            )
+
+        let storedLastSet =
+            try #require(
+                storedSets.last
+            )
+
+        #expect(storedFirstSet.weightKilograms == 80)
+        #expect(storedFirstSet.repetitions == 8)
         #expect(
-            (storedSets?[0].restDuration ?? 0) > 0
+            (storedFirstSet.restDuration ?? 0) > 0
         )
-        #expect(storedSets?[1].weightKilograms == 82.5)
-        #expect(storedSets?[1].repetitions == 6)
+        #expect(storedLastSet.weightKilograms == 82.5)
+        #expect(storedLastSet.repetitions == 6)
     }
 
     @Test

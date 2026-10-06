@@ -263,7 +263,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         isWarmup: Bool = false
     ) -> Bool {
         guard workout.category == .strength,
-              timerState == .running,
+              timerManager.isRunning,
               !isResting,
               weightKilograms >= 0,
               repetitions > 0 else {
@@ -298,7 +298,8 @@ final class WorkoutSessionViewModel: ObservableObject {
             return false
         }
 
-        let completedRestDuration = restElapsedTime
+        let completedRestDuration =
+            restTimerManager.elapsedTime
 
         restTimerManager.stop()
 
