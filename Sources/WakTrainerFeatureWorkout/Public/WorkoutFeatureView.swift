@@ -14,11 +14,29 @@ public struct WorkoutFeatureView: View {
     @StateObject private var coordinator: WorkoutFlowCoordinator
 
     private let fetchWorkoutsUseCase: FetchWorkoutsUseCase
+    private let initialCategory: WorkoutCategory
     private let maximumHeartRate: Double?
+    private let onCancelled: (() -> Void)?
     private let onFinished: (WorkoutSession) -> Void
 
     public init(
         maximumHeartRate: Double? = nil,
+        onFinished: @escaping (WorkoutSession) -> Void
+    ) {
+        self.init(
+            initialWorkout: nil,
+            initialCategory: .strength,
+            maximumHeartRate: maximumHeartRate,
+            onCancelled: nil,
+            onFinished: onFinished
+        )
+    }
+
+    init(
+        initialWorkout: WorkoutDefinition?,
+        initialCategory: WorkoutCategory = .strength,
+        maximumHeartRate: Double? = nil,
+        onCancelled: (() -> Void)? = nil,
         onFinished: @escaping (WorkoutSession) -> Void
     ) {
         let repository = LocalWorkoutCatalogRepository()
@@ -27,11 +45,15 @@ public struct WorkoutFeatureView: View {
             repository: repository
         )
 
+        self.initialCategory = initialCategory
         self.maximumHeartRate = maximumHeartRate
+        self.onCancelled = onCancelled
         self.onFinished = onFinished
 
         _coordinator = StateObject(
-            wrappedValue: WorkoutFlowCoordinator()
+            wrappedValue: WorkoutFlowCoordinator(
+                initialWorkout: initialWorkout
+            )
         )
     }
 
@@ -46,7 +68,9 @@ public struct WorkoutFeatureView: View {
         switch coordinator.state {
         case .selection:
             WorkoutSelectionView(
-                fetchWorkoutsUseCase: fetchWorkoutsUseCase
+                fetchWorkoutsUseCase: fetchWorkoutsUseCase,
+                initialCategory: initialCategory,
+                onCancel: onCancelled
             ) { workout in
                 coordinator.selectWorkout(workout)
             }
