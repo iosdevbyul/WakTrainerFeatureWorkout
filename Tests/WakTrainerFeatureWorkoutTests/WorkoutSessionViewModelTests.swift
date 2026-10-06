@@ -353,6 +353,147 @@ struct WorkoutSessionViewModelTests {
             viewModel.healthDataCollectionError != nil
         )
     }
+
+    @Test
+    func strengthSetRecordingPreservesSetsAndRestDuration() async throws {
+        let healthKitManager = MockHealthKitManager(
+            snapshot: HealthSnapshot(),
+            finalHealthData: WorkoutHealthData()
+        )
+
+        let viewModel = WorkoutSessionViewModel(
+            workout: WorkoutDefinition(
+                id: "bench_press",
+                name: "벤치프레스",
+                category: .strength,
+                type: .staticWorkout
+            ),
+            healthKitManager: healthKitManager,
+            timerManager: TimerManager(),
+            restTimerManager: TimerManager()
+        )
+
+        await viewModel.startWorkout()
+
+        let firstRecorded = viewModel.recordStrengthSet(
+            weightKilograms: 80,
+            repetitions: 8
+        )
+
+        #expect(firstRecorded)
+
+        let firstSet =
+            try #require(
+                viewModel.strengthSets.first
+            )
+
+        #expect(viewModel.strengthSets.count == 1)
+        #expect(firstSet.setNumber == 1)
+        #expect(firstSet.weightKilograms == 80)
+        #expect(firstSet.repetitions == 8)
+        #expect(firstSet.volumeKilograms == 640)
+        #expect(viewModel.isResting)
+
+        let duplicateDuringRest =
+            viewModel.recordStrengthSet(
+                weightKilograms: 80,
+                repetitions: 8
+            )
+
+        #expect(!duplicateDuringRest)
+
+        try await Task.sleep(
+            nanoseconds: 120_000_000
+        )
+
+        let didFinishRest =
+            viewModel.finishRestAndStartNextSet()
+
+        #expect(didFinishRest)
+        #expect(!viewModel.isResting)
+
+        let restedFirstSet =
+            try #require(
+                viewModel.strengthSets.first
+            )
+
+        #expect(
+            (restedFirstSet.restDuration ?? 0)
+                > 0
+        )
+
+        let secondRecorded =
+            viewModel.recordStrengthSet(
+                weightKilograms: 82.5,
+                repetitions: 6
+            )
+
+        #expect(secondRecorded)
+        #expect(viewModel.strengthSets.count == 2)
+        #expect(viewModel.nextStrengthSetNumber == 3)
+
+        let session = await viewModel.finishWorkout()
+
+        let storedSets =
+            try #require(
+                session
+                    .exerciseRecords
+                    .first?
+                    .strengthSets
+            )
+
+        #expect(storedSets.count == 2)
+
+        let storedFirstSet =
+            try #require(
+                storedSets.first
+            )
+
+        let storedLastSet =
+            try #require(
+                storedSets.last
+            )
+
+        #expect(storedFirstSet.weightKilograms == 80)
+        #expect(storedFirstSet.repetitions == 8)
+        #expect(
+            (storedFirstSet.restDuration ?? 0) > 0
+        )
+        #expect(storedLastSet.weightKilograms == 82.5)
+        #expect(storedLastSet.repetitions == 6)
+    }
+
+    @Test
+    func cardioWorkoutRejectsStrengthSetRecording() async {
+        let viewModel = WorkoutSessionViewModel(
+            workout: WorkoutDefinition(
+                id: "running",
+                name: "달리기",
+                category: .cardio,
+                type: .dynamicWorkout
+            ),
+            healthKitManager: MockHealthKitManager(
+                snapshot: HealthSnapshot(),
+                finalHealthData: WorkoutHealthData()
+            ),
+            locationManager: MockWorkoutLocationManager(),
+            timerManager: TimerManager(),
+            restTimerManager: TimerManager()
+        )
+
+        await viewModel.startWorkout()
+
+        let recorded = viewModel.recordStrengthSet(
+            weightKilograms: 80,
+            repetitions: 8
+        )
+
+        #expect(!recorded)
+        #expect(viewModel.strengthSets.isEmpty)
+        #expect(!viewModel.isResting)
+
+        _ = await viewModel.finishWorkout()
+    }
 }
 
 @MainActor
