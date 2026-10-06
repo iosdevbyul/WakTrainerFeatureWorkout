@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import WakTrainerCoreModels
 import WakTrainerDomainWorkout
 
 @MainActor
@@ -14,7 +15,7 @@ final class WorkoutFlowCoordinator: ObservableObject {
     enum State {
         case selection
         case session(WorkoutDefinition)
-        case completion(WorkoutFeatureResult)
+        case completion(WorkoutSession)
     }
 
     @Published private(set) var state: State = .selection
@@ -26,8 +27,8 @@ final class WorkoutFlowCoordinator: ObservableObject {
     func returnToSelection() {
         state = .selection
     }
-    
-    func finishWorkout(_ result: WorkoutFeatureResult) {
-        state = .completion(result)
+
+    func finishWorkout(_ session: WorkoutSession) {
+        state = .completion(session)
     }
 }
