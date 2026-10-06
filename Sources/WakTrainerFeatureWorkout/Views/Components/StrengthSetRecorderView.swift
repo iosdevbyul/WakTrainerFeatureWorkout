@@ -1,5 +1,6 @@
 import WakTrainerCoreModels
 import SwiftUI
+import UIKit
 
 struct StrengthSetRecorderView: View {
 
