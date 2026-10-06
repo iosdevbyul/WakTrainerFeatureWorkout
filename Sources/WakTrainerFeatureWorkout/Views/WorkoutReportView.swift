@@ -2,6 +2,7 @@ import Charts
 import SwiftUI
 import WakTrainerCoreModels
 import WakTrainerDomainWorkout
+import WakTrainerServiceLocation
 
 struct WorkoutReportView: View {
 
@@ -246,68 +247,170 @@ struct WorkoutReportView: View {
         _ cardio: WorkoutCardioReport
     ) -> some View {
         reportSection(title: "Cardio") {
-            LazyVGrid(
-                columns: gridColumns,
-                spacing: 12
-            ) {
-                reportMetric(
-                    title: "거리",
-                    value: formatDistance(
-                        cardio.distanceMeters
+            VStack(alignment: .leading, spacing: 20) {
+                LazyVGrid(
+                    columns: gridColumns,
+                    spacing: 12
+                ) {
+                    reportMetric(
+                        title: "거리",
+                        value: formatDistance(
+                            cardio.distanceMeters
+                        )
                     )
-                )
 
-                reportMetric(
-                    title: "평균 페이스",
-                    value: formatPace(
-                        cardio.averagePaceSecondsPerKilometer
+                    reportMetric(
+                        title: "평균 페이스",
+                        value: formatPace(
+                            cardio.averagePaceSecondsPerKilometer
+                        )
                     )
-                )
 
-                reportMetric(
-                    title: "평균 속도",
-                    value: formatSpeed(
-                        cardio.averageSpeedMetersPerSecond
+                    reportMetric(
+                        title: "평균 속도",
+                        value: formatSpeed(
+                            cardio.averageSpeedMetersPerSecond
+                        )
                     )
-                )
 
-                reportMetric(
-                    title: "최고 속도",
-                    value: formatSpeed(
-                        cardio.maximumSpeedMetersPerSecond
+                    reportMetric(
+                        title: "최고 속도",
+                        value: formatSpeed(
+                            cardio.maximumSpeedMetersPerSecond
+                        )
                     )
-                )
 
-                reportMetric(
-                    title: "케이던스",
-                    value: formatNumber(
-                        cardio.averageCadence,
-                        suffix: " /min"
+                    reportMetric(
+                        title: "케이던스",
+                        value: formatNumber(
+                            cardio.averageCadence,
+                            suffix: " /min"
+                        )
                     )
-                )
 
-                reportMetric(
-                    title: "평균 파워",
-                    value: formatNumber(
-                        cardio.averagePowerWatts,
-                        suffix: " W"
+                    reportMetric(
+                        title: "평균 파워",
+                        value: formatNumber(
+                            cardio.averagePowerWatts,
+                            suffix: " W"
+                        )
                     )
-                )
 
-                reportMetric(
-                    title: "고도 상승",
-                    value: formatNumber(
-                        cardio.elevationGainMeters,
-                        suffix: " m"
+                    reportMetric(
+                        title: "고도 상승",
+                        value: formatNumber(
+                            cardio.elevationGainMeters,
+                            suffix: " m"
+                        )
                     )
-                )
 
-                reportMetric(
-                    title: "경로 포인트",
-                    value: "\(cardio.routePointCount)"
-                )
+                    reportMetric(
+                        title: "GPS 이동거리",
+                        value: formatDistance(
+                            cardio.routeDistanceMeters
+                        )
+                    )
+                }
+
+                if viewModel.session.route.count >= 2 {
+                    routeMapSection(cardio)
+                }
+
+                if !cardio.splits.isEmpty {
+                    cardioSplitsSection(
+                        cardio.splits
+                    )
+                }
             }
         }
+    }
+
+    private func routeMapSection(
+        _ cardio: WorkoutCardioReport
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("이동 경로")
+                    .font(.headline)
+
+                Spacer()
+
+                if let distance =
+                        cardio.routeDistanceMeters {
+                    Text(
+                        formatDistance(
+                            distance
+                        )
+                    )
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(.secondary)
+                }
+            }
+
+            WorkoutMapView(
+                routePoints:
+                    viewModel.session.route
+            )
+            .frame(height: 260)
+            .clipShape(
+                RoundedRectangle(
+                    cornerRadius: 16
+                )
+            )
+        }
+    }
+
+    private func cardioSplitsSection(
+        _ splits: [WorkoutCardioSplit]
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Splits")
+                .font(.headline)
+
+            ForEach(splits) { split in
+                HStack(spacing: 12) {
+                    Text(
+                        splitLabel(split)
+                    )
+                    .frame(
+                        width: 70,
+                        alignment: .leading
+                    )
+                    .foregroundStyle(.secondary)
+
+                    Text(
+                        formatDuration(
+                            split.duration
+                        )
+                    )
+                    .monospacedDigit()
+
+                    Spacer()
+
+                    Text(
+                        formatPace(
+                            split.paceSecondsPerKilometer
+                        )
+                    )
+                    .fontWeight(.semibold)
+                    .monospacedDigit()
+                }
+                .padding(.vertical, 4)
+            }
+        }
+    }
+
+    private func splitLabel(
+        _ split: WorkoutCardioSplit
+    ) -> String {
+        if split.distanceMeters >= 999.5 {
+            return "\(split.index) km"
+        }
+
+        return String(
+            format: "%.0f m",
+            split.distanceMeters
+        )
     }
 
     private var detailsSection: some View {
