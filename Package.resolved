@@ -14,8 +14,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/iosdevbyul/WakTrainerDomainWorkout",
       "state" : {
-        "branch" : "feat/workout-report",
-        "revision" : "afeb4810d04ea6e779206a70b36492d6d5774f37"
+        "branch" : "main",
+        "revision" : "470e994bf4d3ab2af2f450fce4ad9f9fbf12e246"
       }
     },
     {
