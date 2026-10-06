@@ -1,9 +1,9 @@
-
 import SwiftUI
+import WakTrainerCoreModels
 
 struct WorkoutCompletionView: View {
 
-    let result: WorkoutFeatureResult
+    let session: WorkoutSession
     let onDone: () -> Void
 
     var body: some View {
@@ -14,7 +14,7 @@ struct WorkoutCompletionView: View {
                 .font(.largeTitle)
                 .bold()
 
-            Text(result.workoutName)
+            Text(session.workout.name)
                 .font(.title2)
 
             VStack(spacing: 12) {
@@ -25,20 +25,17 @@ struct WorkoutCompletionView: View {
 
                 resultRow(
                     title: "거리",
-                    value: String(
-                        format: "%.2f km",
-                        result.distanceMeters / 1000
-                    )
+                    value: formattedDistance
                 )
 
                 resultRow(
                     title: "칼로리",
-                    value: "\(Int(result.activeCalories)) kcal"
+                    value: formattedCalories
                 )
 
                 resultRow(
                     title: "걸음 수",
-                    value: "\(Int(result.stepCount))"
+                    value: formattedStepCount
                 )
             }
 
@@ -68,7 +65,10 @@ struct WorkoutCompletionView: View {
     }
 
     private var formattedDuration: String {
-        let totalSeconds = Int(result.duration)
+        let totalSeconds = Int(
+            session.timing.activeDuration
+        )
+
         let hours = totalSeconds / 3600
         let minutes = (totalSeconds % 3600) / 60
         let seconds = totalSeconds % 60
@@ -87,5 +87,35 @@ struct WorkoutCompletionView: View {
             minutes,
             seconds
         )
+    }
+
+    private var formattedDistance: String {
+        guard let distance =
+                session.health.summary.distanceMeters else {
+            return "-"
+        }
+
+        return String(
+            format: "%.2f km",
+            distance / 1000
+        )
+    }
+
+    private var formattedCalories: String {
+        guard let calories =
+                session.health.summary.activeCalories else {
+            return "-"
+        }
+
+        return "\(Int(calories)) kcal"
+    }
+
+    private var formattedStepCount: String {
+        guard let stepCount =
+                session.health.summary.stepCount else {
+            return "-"
+        }
+
+        return "\(Int(stepCount))"
     }
 }
