@@ -14,8 +14,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/iosdevbyul/WakTrainerDomainWorkout",
       "state" : {
-        "branch" : "main",
-        "revision" : "470e994bf4d3ab2af2f450fce4ad9f9fbf12e246"
+        "branch" : "feat/cardio-route-analysis",
+        "revision" : "8cafd904946d9c8c17faa3a42cc87d16e73ff9ca"
       }
     },
     {
@@ -42,7 +42,7 @@
       "location" : "https://github.com/iosdevbyul/WakTrainerServiceLocation",
       "state" : {
         "branch" : "main",
-        "revision" : "6d5efd00e70d7cffb75273d563974bae9497e02d"
+        "revision" : "224c6e4f0ad2abd844d6f438618177cf1d145812"
       }
     }
   ],
