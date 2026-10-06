@@ -59,6 +59,10 @@ struct WorkoutSessionViewModelTests {
         #expect(result.activeCalories == 42)
         #expect(result.stepCount == 300)
         #expect(result.distanceMeters == 700)
+        #expect(result.metricSamples.count == 1)
+        #expect(result.averageHeartRateBPM == 120)
+        #expect(result.metricSamples.first?.activeCaloriesKcal == 42)
+        #expect(result.endedAt >= result.startedAt)
 
         #expect(timerManager.state == .idle)
         #expect(timerManager.elapsedTime == 0)

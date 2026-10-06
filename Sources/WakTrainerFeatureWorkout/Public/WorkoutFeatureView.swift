@@ -7,15 +7,18 @@
 
 import SwiftUI
 import WakTrainerDomainWorkout
+import WakTrainerCoreModels
 
 public struct WorkoutFeatureView: View {
 
     @StateObject private var coordinator: WorkoutFlowCoordinator
 
     private let fetchWorkoutsUseCase: FetchWorkoutsUseCase
+    private let profile: UserProfile?
     private let onFinished: (WorkoutFeatureResult) -> Void
 
     public init(
+        profile: UserProfile? = nil,
         onFinished: @escaping (WorkoutFeatureResult) -> Void
     ) {
         let repository = LocalWorkoutCatalogRepository()
@@ -24,6 +27,7 @@ public struct WorkoutFeatureView: View {
             repository: repository
         )
 
+        self.profile = profile
         self.onFinished = onFinished
 
         _coordinator = StateObject(
@@ -50,6 +54,7 @@ public struct WorkoutFeatureView: View {
         case .session(let workout):
             WorkoutSessionView(
                 workout: workout,
+                profile: profile,
                 onCancel: {
                     coordinator.returnToSelection()
                 },

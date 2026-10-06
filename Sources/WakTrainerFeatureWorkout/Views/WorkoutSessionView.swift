@@ -8,21 +8,25 @@ struct WorkoutSessionView: View {
     @StateObject private var viewModel: WorkoutSessionViewModel
 
     private let workout: WorkoutDefinition
+    private let profile: UserProfile?
     private let onCancel: () -> Void
     private let onFinished: (WorkoutFeatureResult) -> Void
     
     init(
         workout: WorkoutDefinition,
+        profile: UserProfile? = nil,
         onCancel: @escaping () -> Void,
         onFinished: @escaping (WorkoutFeatureResult) -> Void
     ) {
         self.workout = workout
+        self.profile = profile
         self.onCancel = onCancel
         self.onFinished = onFinished
 
         _viewModel = StateObject(
             wrappedValue: WorkoutSessionViewModel(
-                workout: workout
+                workout: workout,
+                userProfile: profile
             )
         )
     }

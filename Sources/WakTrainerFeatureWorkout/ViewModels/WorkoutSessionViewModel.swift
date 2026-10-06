@@ -42,11 +42,13 @@ extension LocationManager: WorkoutLocationManaging {
     }
 }
 
+@MainActor
 final class WorkoutSessionViewModel: ObservableObject {
 
     // MARK: - Workout
 
     let workout: WorkoutDefinition
+    private let userProfile: UserProfile?
 
     // MARK: - Dependencies
 
@@ -72,6 +74,12 @@ final class WorkoutSessionViewModel: ObservableObject {
     @Published private(set) var timerState: TimerState = .idle
     @Published private(set) var laps: [LapItem] = []
 
+    // MARK: - Recorded Metrics
+
+    @Published private(set) var metricSamples: [WorkoutMetricSample] = []
+    @Published private(set) var routePoints: [WorkoutRoutePoint] = []
+    private var workoutStartDate: Date?
+
     // MARK: - Private
 
     private var cancellables = Set<AnyCancellable>()
@@ -81,11 +89,13 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     init(
         workout: WorkoutDefinition,
+        userProfile: UserProfile? = nil,
         healthKitManager: HealthKitManagerProtocol = HealthKitManager(),
         locationManager: (any WorkoutLocationManaging)? = nil,
         timerManager: TimerManager = TimerManager()
     ) {
         self.workout = workout
+        self.userProfile = userProfile
         self.healthKitManager = healthKitManager
 
         if let locationManager {
@@ -111,7 +121,11 @@ final class WorkoutSessionViewModel: ObservableObject {
         if let locationManager {
             locationManager.userLocationPublisher
                 .receive(on: DispatchQueue.main)
-                .assign(to: &$userLocation)
+                .sink { [weak self] location in
+                    self?.userLocation = location
+                    self?.captureRouteLocation(location)
+                }
+                .store(in: &cancellables)
 
             locationManager.routeCoordinatesPublisher
                 .receive(on: DispatchQueue.main)
@@ -133,6 +147,11 @@ final class WorkoutSessionViewModel: ObservableObject {
     // MARK: - Workout Actions
 
     func startWorkout() async {
+        guard timerState == .idle else { return }
+
+        metricSamples.removeAll()
+        routePoints.removeAll()
+        workoutStartDate = Date()
         _ = try? await healthKitManager.requestAuthorization()
 
         if workout.requiresLocationTracking {
@@ -202,12 +221,24 @@ final class WorkoutSessionViewModel: ObservableObject {
                     break
                 }
 
-                await MainActor.run {
-                    self.heartRate = snapshot.heartRate
-                    self.activeCalories = snapshot.activeCalories
-                    self.stepCount = snapshot.stepCount
-                    self.distanceMeters = snapshot.distance
+                self.heartRate = snapshot.heartRate
+                self.activeCalories = snapshot.activeCalories
+                self.stepCount = snapshot.stepCount
+                self.distanceMeters = snapshot.distance
+
+                let valid: (Double) -> Double? = { value in
+                    value.isFinite && value > 0 ? value : nil
                 }
+
+                self.metricSamples.append(
+                    WorkoutMetricSample(
+                        recordedAt: Date(),
+                        heartRateBPM: valid(snapshot.heartRate),
+                        activeCaloriesKcal: valid(snapshot.activeCalories),
+                        stepCount: valid(snapshot.stepCount),
+                        distanceMeters: valid(snapshot.distance)
+                    )
+                )
             }
         }
     }
@@ -218,6 +249,30 @@ final class WorkoutSessionViewModel: ObservableObject {
         distanceMeters / 1000.0
     }
     
+    private func captureRouteLocation(_ location: CLLocation?) {
+        guard workoutStartDate != nil,
+              workout.requiresLocationTracking,
+              timerState == .running,
+              let location,
+              location.horizontalAccuracy >= 0,
+              location.horizontalAccuracy <= 65 else {
+            return
+        }
+
+        routePoints.append(
+            WorkoutRoutePoint(
+                recordedAt: location.timestamp,
+                latitude: location.coordinate.latitude,
+                longitude: location.coordinate.longitude,
+                horizontalAccuracyMeters: location.horizontalAccuracy,
+                altitudeMeters: location.verticalAccuracy >= 0
+                    ? location.altitude : nil,
+                speedMetersPerSecond: location.speed >= 0
+                    ? location.speed : nil
+            )
+        )
+    }
+
     private func makeResult() -> WorkoutFeatureResult {
         WorkoutFeatureResult(
             workoutID: workout.id,
@@ -225,7 +280,13 @@ final class WorkoutSessionViewModel: ObservableObject {
             duration: elapsedTime,
             distanceMeters: distanceMeters,
             activeCalories: activeCalories,
-            stepCount: stepCount
+            stepCount: stepCount,
+            startedAt: workoutStartDate ?? Date(),
+            endedAt: Date(),
+            ageAtWorkout: userProfile?.age,
+            requiresLocationTracking: workout.requiresLocationTracking,
+            metricSamples: metricSamples,
+            routePoints: routePoints
         )
     }
 }
