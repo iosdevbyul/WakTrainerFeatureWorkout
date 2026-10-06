@@ -14,9 +14,11 @@ public struct WorkoutFeatureView: View {
     @StateObject private var coordinator: WorkoutFlowCoordinator
 
     private let fetchWorkoutsUseCase: FetchWorkoutsUseCase
+    private let maximumHeartRate: Double?
     private let onFinished: (WorkoutSession) -> Void
 
     public init(
+        maximumHeartRate: Double? = nil,
         onFinished: @escaping (WorkoutSession) -> Void
     ) {
         let repository = LocalWorkoutCatalogRepository()
@@ -25,6 +27,7 @@ public struct WorkoutFeatureView: View {
             repository: repository
         )
 
+        self.maximumHeartRate = maximumHeartRate
         self.onFinished = onFinished
 
         _coordinator = StateObject(
@@ -60,8 +63,9 @@ public struct WorkoutFeatureView: View {
             )
 
         case .completion(let session):
-            WorkoutCompletionView(
-                session: session
+            WorkoutReportView(
+                session: session,
+                maximumHeartRate: maximumHeartRate
             ) {
                 onFinished(session)
             }
