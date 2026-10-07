@@ -5,7 +5,6 @@ import WakTrainerCoreModels
 import WakTrainerDomainWorkout
 import WakTrainerServiceLocation
 import WakTrainerServiceHealthKit
-import WakTrainerServiceWorkoutStorage
 import WakTrainerFeatureTimer
 
 protocol WorkoutLocationManaging: AnyObject {
@@ -124,11 +123,7 @@ final class WorkoutSessionViewModel: ObservableObject {
             self.locationManager = nil
         }
 
-        if let sessionRepository {
-            self.sessionRepository = sessionRepository
-        } else {
-            self.sessionRepository = try? SwiftDataWorkoutSessionRepository()
-        }
+        self.sessionRepository = sessionRepository
 
         self.timerManager = timerManager
         self.restTimerManager = restTimerManager
