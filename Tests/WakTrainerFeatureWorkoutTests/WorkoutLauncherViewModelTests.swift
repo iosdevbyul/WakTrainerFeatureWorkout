@@ -1,3 +1,4 @@
+import Foundation
 import Testing
 import WakTrainerCoreModels
 import WakTrainerDomainWorkout
@@ -106,6 +107,72 @@ struct WorkoutLauncherViewModelTests {
         #expect(outdoor.type == .dynamicWorkout)
     }
 
+
+    @Test("incomplete workout is exposed as a recovery destination")
+    func incompleteWorkoutCanBeRecovered() async throws {
+        let stored = makeStoredSession()
+        let sessionRepository =
+            LauncherMockWorkoutSessionRepository(
+                incomplete: [stored]
+            )
+        let viewModel = makeViewModel(
+            sessionRepository: sessionRepository
+        )
+
+        await viewModel.loadRecoverableWorkout()
+
+        #expect(
+            viewModel.recoverableSession
+                == stored
+        )
+        #expect(
+            viewModel.isRecoveryPromptPresented
+        )
+
+        viewModel.openRecoverableWorkout()
+
+        guard case .recovered(
+            let workout,
+            let recovered
+        ) = viewModel.destination else {
+            Issue.record(
+                "Expected recovered workout destination"
+            )
+            return
+        }
+
+        #expect(workout.id == "running")
+        #expect(workout.category == .cardio)
+        #expect(workout.type == .dynamicWorkout)
+        #expect(recovered == stored)
+    }
+
+    @Test("discard removes the incomplete workout")
+    func incompleteWorkoutCanBeDiscarded() async {
+        let stored = makeStoredSession()
+        let sessionRepository =
+            LauncherMockWorkoutSessionRepository(
+                incomplete: [stored]
+            )
+        let viewModel = makeViewModel(
+            sessionRepository: sessionRepository
+        )
+
+        await viewModel.loadRecoverableWorkout()
+        await viewModel.discardRecoverableWorkout()
+
+        #expect(
+            sessionRepository.deletedIDs
+                == [stored.session.id]
+        )
+        #expect(
+            viewModel.recoverableSession == nil
+        )
+        #expect(
+            !viewModel.isRecoveryPromptPresented
+        )
+    }
+
     @Test("missing quick workout exposes launcher error")
     func missingWorkoutExposesError() async {
         let repository = LauncherMockWorkoutCatalogRepository(
@@ -129,7 +196,10 @@ struct WorkoutLauncherViewModelTests {
 
 private extension WorkoutLauncherViewModelTests {
 
-    func makeViewModel() -> WorkoutLauncherViewModel {
+    func makeViewModel(
+        sessionRepository:
+            (any WorkoutSessionRepository)? = nil
+    ) -> WorkoutLauncherViewModel {
         let workouts = [
             WorkoutDefinition(
                 id: "running",
@@ -170,7 +240,37 @@ private extension WorkoutLauncherViewModelTests {
         return WorkoutLauncherViewModel(
             fetchWorkoutsUseCase: FetchWorkoutsUseCase(
                 repository: repository
+            ),
+            sessionRepository: sessionRepository
+        )
+    }
+
+    func makeStoredSession() -> StoredWorkoutSession {
+        let start = Date(
+            timeIntervalSince1970: 1_800_000_000
+        )
+        let session = WorkoutSession(
+            workout: WorkoutIdentity(
+                workoutID: "running",
+                name: "달리기",
+                category: "cardio",
+                type: .dynamicWorkout
+            ),
+            timing: WorkoutTiming(
+                startDate: start,
+                endDate: nil,
+                elapsedDuration: 300,
+                activeDuration: 280,
+                pausedDuration: 20
             )
+        )
+
+        return StoredWorkoutSession(
+            session: session,
+            persistenceState: .inProgress,
+            syncState: .pending,
+            updatedAt:
+                start.addingTimeInterval(300)
         )
     }
 }
@@ -182,5 +282,60 @@ private struct LauncherMockWorkoutCatalogRepository:
 
     func fetchWorkouts() async throws -> [WorkoutDefinition] {
         workouts
+    }
+}
+
+
+@MainActor
+private final class LauncherMockWorkoutSessionRepository:
+    WorkoutSessionRepository {
+
+    private var incomplete:
+        [StoredWorkoutSession]
+    private(set) var deletedIDs: [UUID] = []
+
+    init(
+        incomplete: [StoredWorkoutSession]
+    ) {
+        self.incomplete = incomplete
+    }
+
+    func saveCheckpoint(
+        _ session: WorkoutSession
+    ) async throws {}
+
+    func saveCompleted(
+        _ session: WorkoutSession
+    ) async throws {}
+
+    func fetchSession(
+        id: UUID
+    ) async throws -> StoredWorkoutSession? {
+        incomplete.first {
+            $0.session.id == id
+        }
+    }
+
+    func fetchSessions()
+        async throws -> [StoredWorkoutSession] {
+        incomplete
+    }
+
+    func fetchIncompleteSessions()
+        async throws -> [StoredWorkoutSession] {
+        incomplete
+    }
+
+    func deleteSession(
+        id: UUID
+    ) async throws {
+        deletedIDs.append(id)
+        incomplete.removeAll {
+            $0.session.id == id
+        }
+    }
+
+    func deleteAllSessions() async throws {
+        incomplete.removeAll()
     }
 }

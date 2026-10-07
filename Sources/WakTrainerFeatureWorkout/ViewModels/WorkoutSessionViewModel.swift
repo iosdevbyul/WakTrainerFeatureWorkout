@@ -93,6 +93,16 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     private var sessionID = UUID()
     private var sessionStartDate: Date?
+    private var recoveredHealthData: WorkoutHealthData?
+    private var recoveredActiveCaloriesBase: Double = 0
+    private var recoveredStepCountBase: Double = 0
+    private var recoveredDistanceBase: Double = 0
+    private var recoveryResumeDate: Date?
+    private var needsRuntimeRestart = false
+    private var restoredRouteCoordinates:
+        [CLLocationCoordinate2D] = []
+    private var restoredRoutePoints:
+        [WorkoutRoutePoint] = []
 
     // MARK: - Private
 
@@ -106,6 +116,7 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     init(
         workout: WorkoutDefinition,
+        restoredSession: StoredWorkoutSession? = nil,
         healthKitManager: HealthKitManagerProtocol = HealthKitManager(),
         locationManager: (any WorkoutLocationManaging)? = nil,
         sessionRepository: (any WorkoutSessionRepository)? = nil,
@@ -128,6 +139,12 @@ final class WorkoutSessionViewModel: ObservableObject {
         self.timerManager = timerManager
         self.restTimerManager = restTimerManager
 
+        if let restoredSession {
+            restorePersistedSession(
+                restoredSession
+            )
+        }
+
         setupSubscriptions()
     }
 
@@ -144,11 +161,22 @@ final class WorkoutSessionViewModel: ObservableObject {
                 .receive(on: DispatchQueue.main)
                 .assign(to: &$userLocation)
 
+            let routeCoordinatePrefix =
+                restoredRouteCoordinates
+            let routePointPrefix =
+                restoredRoutePoints
+
             locationManager.routeCoordinatesPublisher
+                .map {
+                    routeCoordinatePrefix + $0
+                }
                 .receive(on: DispatchQueue.main)
                 .assign(to: &$routeCoordinates)
 
             locationManager.routePointsPublisher
+                .map {
+                    routePointPrefix + $0
+                }
                 .receive(on: DispatchQueue.main)
                 .assign(to: &$routePoints)
         }
@@ -211,6 +239,21 @@ final class WorkoutSessionViewModel: ObservableObject {
     }
 
     func resumeWorkout() {
+        if needsRuntimeRestart {
+            recoveryResumeDate = Date()
+
+            if workout.requiresLocationTracking {
+                locationManager?
+                    .requestLocationPermission()
+                locationManager?
+                    .startTracking()
+            }
+
+            startHealthObservation()
+            startCheckpointLoop()
+            needsRuntimeRestart = false
+        }
+
         timerManager.start()
 
         if isResting {
@@ -240,13 +283,48 @@ final class WorkoutSessionViewModel: ObservableObject {
 
         await stopWorkout()
 
-        let healthData = await collectFinalHealthData(
-            from: startDate,
-            to: endDate,
-            liveActiveCalories: liveActiveCalories,
-            liveStepCount: liveStepCount,
-            liveDistance: liveDistance
-        )
+        let healthData: WorkoutHealthData
+
+        if let recoveredHealthData {
+            if let recoveryResumeDate {
+                let resumedHealthData =
+                    await collectFinalHealthData(
+                        from: recoveryResumeDate,
+                        to: endDate,
+                        liveActiveCalories: max(
+                            0,
+                            liveActiveCalories -
+                            recoveredActiveCaloriesBase
+                        ),
+                        liveStepCount: max(
+                            0,
+                            liveStepCount -
+                            recoveredStepCountBase
+                        ),
+                        liveDistance: max(
+                            0,
+                            liveDistance -
+                            recoveredDistanceBase
+                        )
+                    )
+
+                healthData =
+                    mergeRecoveredHealthData(
+                        recoveredHealthData,
+                        with: resumedHealthData
+                    )
+            } else {
+                healthData = recoveredHealthData
+            }
+        } else {
+            healthData = await collectFinalHealthData(
+                from: startDate,
+                to: endDate,
+                liveActiveCalories: liveActiveCalories,
+                liveStepCount: liveStepCount,
+                liveDistance: liveDistance
+            )
+        }
 
         let session = makeSession(
             id: finalSessionID,
@@ -439,6 +517,65 @@ final class WorkoutSessionViewModel: ObservableObject {
         }
     }
 
+    // MARK: - Recovery
+
+    private func restorePersistedSession(
+        _ storedSession: StoredWorkoutSession
+    ) {
+        let session = storedSession.session
+        let healthSummary = session.health.summary
+
+        sessionID = session.id
+        sessionStartDate = session.timing.startDate
+        recoveredHealthData = session.health
+
+        recoveredActiveCaloriesBase =
+            healthSummary.activeCalories ?? 0
+        recoveredStepCountBase =
+            healthSummary.stepCount ?? 0
+        recoveredDistanceBase =
+            healthSummary.distanceMeters ?? 0
+
+        heartRate =
+            healthSummary.averageHeartRate ?? 0
+        activeCalories =
+            recoveredActiveCaloriesBase
+        stepCount =
+            recoveredStepCountBase
+        distanceMeters =
+            recoveredDistanceBase
+
+        strengthSets = session.exerciseRecords
+            .flatMap(\.strengthSets)
+
+        restoredRoutePoints = session.route
+        restoredRouteCoordinates =
+            session.route.map {
+                CLLocationCoordinate2D(
+                    latitude: $0.latitude,
+                    longitude: $0.longitude
+                )
+            }
+
+        routePoints = restoredRoutePoints
+        routeCoordinates =
+            restoredRouteCoordinates
+
+        timerManager.restore(
+            elapsedTime:
+                session.timing.activeDuration
+        )
+
+        elapsedTime =
+            timerManager.elapsedTime
+        timerState =
+            timerManager.state
+        laps =
+            timerManager.laps
+
+        needsRuntimeRestart = true
+    }
+
     // MARK: - Health Observation
 
     private func startHealthObservation() {
@@ -457,9 +594,15 @@ final class WorkoutSessionViewModel: ObservableObject {
                 }
 
                 self.heartRate = snapshot.heartRate
-                self.activeCalories = snapshot.activeCalories
-                self.stepCount = snapshot.stepCount
-                self.distanceMeters = snapshot.distance
+                self.activeCalories =
+                    self.recoveredActiveCaloriesBase +
+                    snapshot.activeCalories
+                self.stepCount =
+                    self.recoveredStepCountBase +
+                    snapshot.stepCount
+                self.distanceMeters =
+                    self.recoveredDistanceBase +
+                    snapshot.distance
             }
         }
     }
@@ -496,6 +639,83 @@ final class WorkoutSessionViewModel: ObservableObject {
                     distanceMeters: nonZero(liveDistance)
                 )
             )
+        }
+    }
+
+    private func mergeRecoveredHealthData(
+        _ recovered: WorkoutHealthData,
+        with resumed: WorkoutHealthData
+    ) -> WorkoutHealthData {
+        var merged = resumed
+        let previous = recovered.summary
+
+        merged.summary.activeCalories =
+            (previous.activeCalories ?? 0) +
+            (resumed.summary.activeCalories ?? 0)
+
+        merged.summary.stepCount =
+            (previous.stepCount ?? 0) +
+            (resumed.summary.stepCount ?? 0)
+
+        merged.summary.distanceMeters =
+            (previous.distanceMeters ?? 0) +
+            (resumed.summary.distanceMeters ?? 0)
+
+        if merged.summary.averageHeartRate == nil {
+            merged.summary.averageHeartRate =
+                previous.averageHeartRate
+        }
+
+        merged.summary.minimumHeartRate =
+            minimumOptional(
+                previous.minimumHeartRate,
+                resumed.summary.minimumHeartRate
+            )
+
+        merged.summary.maximumHeartRate =
+            maximumOptional(
+                previous.maximumHeartRate,
+                resumed.summary.maximumHeartRate
+            )
+
+        merged.samples =
+            recovered.samples +
+            resumed.samples
+
+        return merged
+    }
+
+    private func minimumOptional(
+        _ lhs: Double?,
+        _ rhs: Double?
+    ) -> Double? {
+        switch (lhs, rhs) {
+        case let (.some(lhs), .some(rhs)):
+            min(lhs, rhs)
+
+        case let (.some(value), .none),
+             let (.none, .some(value)):
+            value
+
+        case (.none, .none):
+            nil
+        }
+    }
+
+    private func maximumOptional(
+        _ lhs: Double?,
+        _ rhs: Double?
+    ) -> Double? {
+        switch (lhs, rhs) {
+        case let (.some(lhs), .some(rhs)):
+            max(lhs, rhs)
+
+        case let (.some(value), .none),
+             let (.none, .some(value)):
+            value
+
+        case (.none, .none):
+            nil
         }
     }
 
