@@ -15,6 +15,10 @@ final class WorkoutLauncherViewModel: ObservableObject {
     enum Destination: Identifiable, Equatable {
         case workout(WorkoutDefinition)
         case category(WorkoutCategory)
+        case recovered(
+            WorkoutDefinition,
+            StoredWorkoutSession
+        )
 
         var id: String {
             switch self {
@@ -23,6 +27,9 @@ final class WorkoutLauncherViewModel: ObservableObject {
 
             case .category(let category):
                 "category-\(category.rawValue)"
+
+            case .recovered(_, let storedSession):
+                "recovered-\(storedSession.session.id.uuidString)"
             }
         }
     }
@@ -31,14 +38,38 @@ final class WorkoutLauncherViewModel: ObservableObject {
     @Published var isCyclingExpanded = false
     @Published var destination: Destination?
     @Published var errorMessage: String?
+    @Published var recoverableSession: StoredWorkoutSession?
+    @Published var isRecoveryPromptPresented = false
 
     private let fetchWorkoutsUseCase: FetchWorkoutsUseCase
+    private let sessionRepository: (any WorkoutSessionRepository)?
     private var cachedWorkouts: [WorkoutDefinition] = []
 
     init(
-        fetchWorkoutsUseCase: FetchWorkoutsUseCase
+        fetchWorkoutsUseCase: FetchWorkoutsUseCase,
+        sessionRepository: (any WorkoutSessionRepository)? = nil
     ) {
         self.fetchWorkoutsUseCase = fetchWorkoutsUseCase
+        self.sessionRepository = sessionRepository
+    }
+
+    func loadRecoverableWorkout() async {
+        guard destination == nil,
+              let sessionRepository else {
+            return
+        }
+
+        do {
+            let incomplete =
+                try await sessionRepository
+                    .fetchIncompleteSessions()
+
+            recoverableSession = incomplete.first
+            isRecoveryPromptPresented =
+                recoverableSession != nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
     }
 
     func toggleLauncher() {
@@ -78,6 +109,57 @@ final class WorkoutLauncherViewModel: ObservableObject {
         }
     }
 
+    func openRecoverableWorkout() {
+        guard let recoverableSession else {
+            return
+        }
+
+        do {
+            let workout = try makeWorkoutDefinition(
+                from: recoverableSession
+            )
+
+            isRecoveryPromptPresented = false
+            closeLauncher()
+
+            destination = .recovered(
+                workout,
+                recoverableSession
+            )
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func discardRecoverableWorkout() async {
+        guard let recoverableSession,
+              let sessionRepository else {
+            return
+        }
+
+        do {
+            try await sessionRepository.deleteSession(
+                id: recoverableSession.session.id
+            )
+
+            self.recoverableSession = nil
+            isRecoveryPromptPresented = false
+
+            let remaining =
+                try await sessionRepository
+                    .fetchIncompleteSessions()
+
+            self.recoverableSession =
+                remaining.first
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func dismissRecoveryPrompt() {
+        isRecoveryPromptPresented = false
+    }
+
     func dismissWorkoutFlow() {
         destination = nil
     }
@@ -105,15 +187,40 @@ private extension WorkoutLauncherViewModel {
 
         return workout
     }
+
+    func makeWorkoutDefinition(
+        from storedSession: StoredWorkoutSession
+    ) throws -> WorkoutDefinition {
+        let session = storedSession.session
+
+        guard let category = WorkoutCategory(
+            rawValue: session.workout.category
+        ) else {
+            throw WorkoutLauncherError.invalidStoredCategory(
+                session.workout.category
+            )
+        }
+
+        return WorkoutDefinition(
+            id: session.workout.workoutID,
+            name: session.workout.name,
+            category: category,
+            type: session.workout.type
+        )
+    }
 }
 
 private enum WorkoutLauncherError: LocalizedError {
     case workoutNotFound(String)
+    case invalidStoredCategory(String)
 
     var errorDescription: String? {
         switch self {
         case .workoutNotFound(let id):
             "운동 정보를 찾을 수 없습니다: \(id)"
+
+        case .invalidStoredCategory(let category):
+            "저장된 운동 종류를 복구할 수 없습니다: \(category)"
         }
     }
 }
