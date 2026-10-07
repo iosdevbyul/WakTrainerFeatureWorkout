@@ -10,6 +10,10 @@ public struct WorkoutHistoryView: View {
     private var viewModel:
         WorkoutHistoryViewModel
 
+    @State
+    private var automaticReportSession:
+        WorkoutSession?
+
     private let selectedDate: Date?
     private let maximumHeartRate: Double?
 
@@ -59,9 +63,34 @@ public struct WorkoutHistoryView: View {
             }
         }
         .task(id: selectedDate) {
+            automaticReportSession = nil
+
             await viewModel.load(
                 selectedDate: selectedDate
             )
+
+            openSingleWorkoutIfNeeded()
+        }
+        .navigationDestination(
+            isPresented: Binding(
+                get: {
+                    automaticReportSession != nil
+                },
+                set: { isPresented in
+                    if !isPresented {
+                        automaticReportSession = nil
+                    }
+                }
+            )
+        ) {
+            if let session =
+                    automaticReportSession {
+                HistoricalWorkoutReportView(
+                    session: session,
+                    maximumHeartRate:
+                        maximumHeartRate
+                )
+            }
         }
     }
 }
@@ -144,6 +173,16 @@ private extension WorkoutHistoryView {
         selectedDate == nil
             ? "Complete a workout to see its report here."
             : "There are no recorded workouts for this day."
+    }
+
+    func openSingleWorkoutIfNeeded() {
+        guard selectedDate != nil,
+              viewModel.sessions.count == 1 else {
+            return
+        }
+
+        automaticReportSession =
+            viewModel.sessions[0].session
     }
 }
 
