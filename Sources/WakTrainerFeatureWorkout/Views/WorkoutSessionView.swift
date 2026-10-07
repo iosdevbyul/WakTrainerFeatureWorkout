@@ -3,7 +3,9 @@ import WakTrainerCoreModels
 import WakTrainerDomainWorkout
 import WakTrainerFeatureTimer
 import WakTrainerServiceLocation
+import WakTrainerServiceWorkoutStorage
 
+@MainActor
 struct WorkoutSessionView: View {
     @StateObject private var viewModel: WorkoutSessionViewModel
 
@@ -20,9 +22,13 @@ struct WorkoutSessionView: View {
         self.onCancel = onCancel
         self.onFinished = onFinished
 
+        let sessionRepository =
+            try? SwiftDataWorkoutSessionRepository()
+
         _viewModel = StateObject(
             wrappedValue: WorkoutSessionViewModel(
-                workout: workout
+                workout: workout,
+                sessionRepository: sessionRepository
             )
         )
     }
