@@ -5,7 +5,7 @@ let package = Package(
     name: "WakTrainerFeatureWorkout",
     platforms: [
         .iOS(.v17),
-        .macOS(.v13)
+        .macOS(.v14)
     ],
     products: [
         .library(name: "WakTrainerFeatureWorkout", targets: ["WakTrainerFeatureWorkout"])
@@ -29,6 +29,10 @@ let package = Package(
         ),
         .package(
             url: "https://github.com/iosdevbyul/WakTrainerServiceHealthKit",
+            branch: "main"
+        ),
+        .package(
+            url: "https://github.com/iosdevbyul/WakTrainerServiceWorkoutStorage",
             branch: "main"
         )
     ],
@@ -55,14 +59,18 @@ let package = Package(
                 .product(
                     name: "WakTrainerServiceHealthKit",
                     package: "WakTrainerServiceHealthKit"
+                ),
+                .product(
+                    name: "WakTrainerServiceWorkoutStorage",
+                    package: "WakTrainerServiceWorkoutStorage"
                 )
             ]
         ),
         .testTarget(
-                name: "WakTrainerFeatureWorkoutTests",
-                dependencies: [
-                    "WakTrainerFeatureWorkout"
-                ]
-            )
-    ],
+            name: "WakTrainerFeatureWorkoutTests",
+            dependencies: [
+                "WakTrainerFeatureWorkout"
+            ]
+        )
+    ]
 )
