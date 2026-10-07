@@ -15,6 +15,9 @@ struct WorkoutSessionView: View {
     
     init(
         workout: WorkoutDefinition,
+        restoredSession: StoredWorkoutSession? = nil,
+        sessionRepository:
+            (any WorkoutSessionRepository)? = nil,
         onCancel: @escaping () -> Void,
         onFinished: @escaping (WorkoutSession) -> Void
     ) {
@@ -22,13 +25,15 @@ struct WorkoutSessionView: View {
         self.onCancel = onCancel
         self.onFinished = onFinished
 
-        let sessionRepository =
-            try? SwiftDataWorkoutSessionRepository()
+        let resolvedRepository =
+            sessionRepository ??
+            (try? SwiftDataWorkoutSessionRepository())
 
         _viewModel = StateObject(
             wrappedValue: WorkoutSessionViewModel(
                 workout: workout,
-                sessionRepository: sessionRepository
+                restoredSession: restoredSession,
+                sessionRepository: resolvedRepository
             )
         )
     }
