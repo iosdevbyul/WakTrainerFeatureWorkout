@@ -5,6 +5,7 @@ import WakTrainerCoreModels
 import WakTrainerDomainWorkout
 import WakTrainerServiceLocation
 import WakTrainerServiceHealthKit
+import WakTrainerServiceWorkoutStorage
 import WakTrainerFeatureTimer
 
 protocol WorkoutLocationManaging: AnyObject {
@@ -58,6 +59,7 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     private let healthKitManager: HealthKitManagerProtocol
     private let locationManager: (any WorkoutLocationManaging)?
+    private let sessionRepository: (any WorkoutSessionRepository)?
     private(set) var timerManager: TimerManager
     private let restTimerManager: TimerManager
 
@@ -68,6 +70,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     @Published private(set) var stepCount: Double = 0
     @Published private(set) var distanceMeters: Double = 0
     @Published private(set) var healthDataCollectionError: String?
+    @Published private(set) var storageError: String?
 
     // MARK: - Location Data
 
@@ -89,11 +92,16 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     // MARK: - Session State
 
+    private var sessionID = UUID()
     private var sessionStartDate: Date?
 
     // MARK: - Private
 
     private var healthTask: Task<Void, Never>?
+    private var checkpointTask: Task<Void, Never>?
+
+    private static let checkpointIntervalNanoseconds: UInt64 =
+        15_000_000_000
 
     // MARK: - Initializer
 
@@ -101,6 +109,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         workout: WorkoutDefinition,
         healthKitManager: HealthKitManagerProtocol = HealthKitManager(),
         locationManager: (any WorkoutLocationManaging)? = nil,
+        sessionRepository: (any WorkoutSessionRepository)? = nil,
         timerManager: TimerManager = TimerManager(),
         restTimerManager: TimerManager = TimerManager()
     ) {
@@ -115,6 +124,12 @@ final class WorkoutSessionViewModel: ObservableObject {
             self.locationManager = nil
         }
 
+        if let sessionRepository {
+            self.sessionRepository = sessionRepository
+        } else {
+            self.sessionRepository = try? SwiftDataWorkoutSessionRepository()
+        }
+
         self.timerManager = timerManager
         self.restTimerManager = restTimerManager
 
@@ -123,6 +138,7 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     deinit {
         healthTask?.cancel()
+        checkpointTask?.cancel()
     }
 
     // MARK: - Setup
@@ -167,6 +183,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         }
 
         resetSessionState()
+        sessionID = UUID()
 
         _ = try? await healthKitManager.requestAuthorization()
 
@@ -182,6 +199,8 @@ final class WorkoutSessionViewModel: ObservableObject {
         }
 
         startHealthObservation()
+        await saveCheckpoint()
+        startCheckpointLoop()
     }
 
     func pauseWorkout() {
@@ -189,6 +208,10 @@ final class WorkoutSessionViewModel: ObservableObject {
 
         if isResting {
             restTimerManager.pause()
+        }
+
+        Task {
+            await saveCheckpoint()
         }
     }
 
@@ -198,12 +221,20 @@ final class WorkoutSessionViewModel: ObservableObject {
         if isResting {
             restTimerManager.start()
         }
+
+        Task {
+            await saveCheckpoint()
+        }
     }
 
     func finishWorkout() async -> WorkoutSession {
+        checkpointTask?.cancel()
+        checkpointTask = nil
+
         let endDate = Date()
         let startDate = sessionStartDate ?? endDate
         let activeDuration = elapsedTime
+        let finalSessionID = sessionID
 
         let finalRoutePoints = routePoints
         let finalStrengthSets = strengthSets
@@ -222,9 +253,8 @@ final class WorkoutSessionViewModel: ObservableObject {
             liveDistance: liveDistance
         )
 
-        sessionStartDate = nil
-
-        return makeSession(
+        let session = makeSession(
+            id: finalSessionID,
             startDate: startDate,
             endDate: endDate,
             activeDuration: activeDuration,
@@ -232,6 +262,19 @@ final class WorkoutSessionViewModel: ObservableObject {
             routePoints: finalRoutePoints,
             strengthSets: finalStrengthSets
         )
+
+        do {
+            try await sessionRepository?.saveCompleted(
+                session
+            )
+            storageError = nil
+        } catch {
+            storageError = error.localizedDescription
+        }
+
+        sessionStartDate = nil
+
+        return session
     }
 
     private func stopWorkout() async {
@@ -252,6 +295,10 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     func recordLap() {
         timerManager.recordLap()
+
+        Task {
+            await saveCheckpoint()
+        }
     }
 
     // MARK: - Strength Recording
@@ -287,6 +334,10 @@ final class WorkoutSessionViewModel: ObservableObject {
         restTimerManager.start()
         isResting = true
 
+        Task {
+            await saveCheckpoint()
+        }
+
         return true
     }
 
@@ -309,6 +360,10 @@ final class WorkoutSessionViewModel: ObservableObject {
 
         isResting = false
 
+        Task {
+            await saveCheckpoint()
+        }
+
         return true
     }
 
@@ -322,10 +377,71 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     private func resetSessionState() {
         healthDataCollectionError = nil
+        storageError = nil
 
         restTimerManager.stop()
         isResting = false
         strengthSets.removeAll()
+    }
+
+    // MARK: - Checkpoint Persistence
+
+    private func startCheckpointLoop() {
+        checkpointTask?.cancel()
+
+        checkpointTask = Task { [weak self] in
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(
+                        nanoseconds:
+                            Self.checkpointIntervalNanoseconds
+                    )
+                } catch {
+                    break
+                }
+
+                guard !Task.isCancelled else {
+                    break
+                }
+
+                await self?.saveCheckpoint()
+            }
+        }
+    }
+
+    private func saveCheckpoint() async {
+        guard let sessionRepository,
+              let startDate = sessionStartDate else {
+            return
+        }
+
+        let liveHealthData = WorkoutHealthData(
+            summary: WorkoutHealthSummary(
+                averageHeartRate: nonZero(heartRate),
+                activeCalories: nonZero(activeCalories),
+                stepCount: nonZero(stepCount),
+                distanceMeters: nonZero(distanceMeters)
+            )
+        )
+
+        let checkpoint = makeSession(
+            id: sessionID,
+            startDate: startDate,
+            endDate: nil,
+            activeDuration: elapsedTime,
+            healthData: liveHealthData,
+            routePoints: routePoints,
+            strengthSets: strengthSets
+        )
+
+        do {
+            try await sessionRepository.saveCheckpoint(
+                checkpoint
+            )
+            storageError = nil
+        } catch {
+            storageError = error.localizedDescription
+        }
     }
 
     // MARK: - Health Observation
@@ -416,16 +532,19 @@ final class WorkoutSessionViewModel: ObservableObject {
     // MARK: - Session
 
     private func makeSession(
+        id: UUID,
         startDate: Date,
-        endDate: Date,
+        endDate: Date?,
         activeDuration: TimeInterval,
         healthData: WorkoutHealthData,
         routePoints: [WorkoutRoutePoint],
         strengthSets: [StrengthSetRecord]
     ) -> WorkoutSession {
+        let referenceDate = endDate ?? Date()
+
         let elapsedDuration = max(
             0,
-            endDate.timeIntervalSince(startDate)
+            referenceDate.timeIntervalSince(startDate)
         )
 
         let normalizedActiveDuration = min(
@@ -465,6 +584,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         )
 
         return WorkoutSession(
+            id: id,
             workout: identity,
             timing: timing,
             exerciseRecords: [exerciseRecord],
