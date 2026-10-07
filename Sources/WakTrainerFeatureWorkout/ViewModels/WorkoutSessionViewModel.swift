@@ -562,11 +562,16 @@ final class WorkoutSessionViewModel: ObservableObject {
             restoredRouteCoordinates
 
         timerManager.restore(
-            elapsedTime: max(
-                session.timing.activeDuration,
-                0.001
-            )
+            elapsedTime:
+                session.timing.activeDuration
         )
+
+        elapsedTime =
+            timerManager.elapsedTime
+        timerState =
+            timerManager.state
+        laps =
+            timerManager.laps
 
         needsRuntimeRestart = true
     }
