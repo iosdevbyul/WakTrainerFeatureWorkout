@@ -15,7 +15,7 @@
       "location" : "https://github.com/iosdevbyul/WakTrainerDomainWorkout",
       "state" : {
         "branch" : "main",
-        "revision" : "a6b7b47d2baf1ab3faa6cf6c7e676ed03877e069"
+        "revision" : "2a127041aca340d79df280338a21bce57c71ddc7"
       }
     },
     {
@@ -51,7 +51,7 @@
       "location" : "https://github.com/iosdevbyul/WakTrainerServiceWorkoutStorage",
       "state" : {
         "branch" : "main",
-        "revision" : "30e28a3702a6cd09d075a3b072700f2563e80ae1"
+        "revision" : "c786b81602745ce21334a8826332c8ec3505ff5d"
       }
     }
   ],
