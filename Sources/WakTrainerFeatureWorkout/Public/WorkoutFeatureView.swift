@@ -15,6 +15,9 @@ public struct WorkoutFeatureView: View {
 
     private let fetchWorkoutsUseCase: FetchWorkoutsUseCase
     private let initialCategory: WorkoutCategory
+    private let restoredSession: StoredWorkoutSession?
+    private let sessionRepository:
+        (any WorkoutSessionRepository)?
     private let maximumHeartRate: Double?
     private let onCancelled: (() -> Void)?
     private let onFinished: (WorkoutSession) -> Void
@@ -26,6 +29,8 @@ public struct WorkoutFeatureView: View {
         self.init(
             initialWorkout: nil,
             initialCategory: .strength,
+            restoredSession: nil,
+            sessionRepository: nil,
             maximumHeartRate: maximumHeartRate,
             onCancelled: nil,
             onFinished: onFinished
@@ -35,6 +40,9 @@ public struct WorkoutFeatureView: View {
     init(
         initialWorkout: WorkoutDefinition?,
         initialCategory: WorkoutCategory = .strength,
+        restoredSession: StoredWorkoutSession? = nil,
+        sessionRepository:
+            (any WorkoutSessionRepository)? = nil,
         maximumHeartRate: Double? = nil,
         onCancelled: (() -> Void)? = nil,
         onFinished: @escaping (WorkoutSession) -> Void
@@ -46,6 +54,8 @@ public struct WorkoutFeatureView: View {
         )
 
         self.initialCategory = initialCategory
+        self.restoredSession = restoredSession
+        self.sessionRepository = sessionRepository
         self.maximumHeartRate = maximumHeartRate
         self.onCancelled = onCancelled
         self.onFinished = onFinished
@@ -78,6 +88,11 @@ public struct WorkoutFeatureView: View {
         case .session(let workout):
             WorkoutSessionView(
                 workout: workout,
+                restoredSession:
+                    restoredSessionForWorkout(
+                        workout
+                    ),
+                sessionRepository: sessionRepository,
                 onCancel: {
                     coordinator.returnToSelection()
                 },
@@ -94,5 +109,17 @@ public struct WorkoutFeatureView: View {
                 onFinished(session)
             }
         }
+    }
+
+    private func restoredSessionForWorkout(
+        _ workout: WorkoutDefinition
+    ) -> StoredWorkoutSession? {
+        guard let restoredSession,
+              restoredSession.session
+                .workout.workoutID == workout.id else {
+            return nil
+        }
+
+        return restoredSession
     }
 }
