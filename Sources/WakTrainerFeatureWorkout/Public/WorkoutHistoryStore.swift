@@ -17,7 +17,25 @@ public final class WorkoutHistoryStore: ObservableObject {
     @Published
     public private(set) var errorMessage: String?
 
-    public init() {}
+    private let repositoryProvider:
+        () throws -> any WorkoutSessionRepository
+
+    public convenience init() {
+        self.init(
+            repositoryProvider: {
+                try SwiftDataWorkoutSessionRepository()
+            }
+        )
+    }
+
+    init(
+        repositoryProvider:
+            @escaping () throws ->
+                any WorkoutSessionRepository
+    ) {
+        self.repositoryProvider =
+            repositoryProvider
+    }
 
     public var latestSession: WorkoutSession? {
         sessions.first?.session
@@ -33,7 +51,7 @@ public final class WorkoutHistoryStore: ObservableObject {
 
         do {
             let repository =
-                try SwiftDataWorkoutSessionRepository()
+                try repositoryProvider()
 
             sessions =
                 try await repository
