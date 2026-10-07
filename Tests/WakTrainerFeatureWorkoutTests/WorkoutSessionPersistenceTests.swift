@@ -187,6 +187,13 @@ private final class MockWorkoutSessionRepository:
         []
     }
 
+    func fetchCompletedSessions(
+        from startDate: Date,
+        to endDate: Date
+    ) async throws -> [StoredWorkoutSession] {
+        []
+    }
+
     func deleteSession(
         id: UUID
     ) async throws {}

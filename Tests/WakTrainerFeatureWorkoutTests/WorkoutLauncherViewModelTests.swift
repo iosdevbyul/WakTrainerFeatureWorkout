@@ -326,6 +326,13 @@ private final class LauncherMockWorkoutSessionRepository:
         incomplete
     }
 
+    func fetchCompletedSessions(
+        from startDate: Date,
+        to endDate: Date
+    ) async throws -> [StoredWorkoutSession] {
+        []
+    }
+
     func deleteSession(
         id: UUID
     ) async throws {

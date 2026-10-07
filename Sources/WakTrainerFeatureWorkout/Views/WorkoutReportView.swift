@@ -45,7 +45,7 @@ struct WorkoutReportView: View {
 
                 detailsSection
 
-                Button("완료") {
+                Button("Done") {
                     onDone()
                 }
                 .buttonStyle(.borderedProminent)
@@ -60,7 +60,7 @@ struct WorkoutReportView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("운동 완료")
+            Text("Workout Complete")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -85,14 +85,14 @@ struct WorkoutReportView: View {
                 spacing: 12
             ) {
                 reportMetric(
-                    title: "활동 시간",
+                    title: "Active Time",
                     value: formatDuration(
                         viewModel.report.summary.activeDuration
                     )
                 )
 
                 reportMetric(
-                    title: "칼로리",
+                    title: "Calories",
                     value: formatNumber(
                         viewModel.report.summary.activeCalories,
                         suffix: " kcal"
@@ -100,14 +100,14 @@ struct WorkoutReportView: View {
                 )
 
                 reportMetric(
-                    title: "거리",
+                    title: "Distance",
                     value: formatDistance(
                         viewModel.report.summary.distanceMeters
                     )
                 )
 
                 reportMetric(
-                    title: "평균 심박수",
+                    title: "Average Heart Rate",
                     value: formatNumber(
                         viewModel.report.summary.averageHeartRate,
                         suffix: " bpm"
@@ -122,7 +122,7 @@ struct WorkoutReportView: View {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(spacing: 12) {
                     reportMetric(
-                        title: "평균",
+                        title: "Average",
                         value: formatNumber(
                             viewModel.report.heart.averageHeartRate,
                             suffix: " bpm"
@@ -130,7 +130,7 @@ struct WorkoutReportView: View {
                     )
 
                     reportMetric(
-                        title: "최대",
+                        title: "Maximum",
                         value: formatNumber(
                             viewModel.report.heart.maximumHeartRate,
                             suffix: " bpm"
@@ -138,7 +138,7 @@ struct WorkoutReportView: View {
                     )
 
                     reportMetric(
-                        title: "최소",
+                        title: "Minimum",
                         value: formatNumber(
                             viewModel.report.heart.minimumHeartRate,
                             suffix: " bpm"
@@ -187,17 +187,17 @@ struct WorkoutReportView: View {
                     spacing: 12
                 ) {
                     reportMetric(
-                        title: "작업 세트",
+                        title: "Working Sets",
                         value: "\(strength.workingSets)"
                     )
 
                     reportMetric(
-                        title: "총 반복",
+                        title: "Total Repetitions",
                         value: "\(strength.totalRepetitions)"
                     )
 
                     reportMetric(
-                        title: "총 볼륨",
+                        title: "Total Volume",
                         value: formatNumber(
                             strength.totalVolumeKilograms,
                             suffix: " kg"
@@ -205,7 +205,7 @@ struct WorkoutReportView: View {
                     )
 
                     reportMetric(
-                        title: "최대 중량",
+                        title: "Maximum Weight",
                         value: formatNumber(
                             strength.maximumWeightKilograms,
                             suffix: " kg"
@@ -222,7 +222,7 @@ struct WorkoutReportView: View {
                     )
 
                     reportMetric(
-                        title: "평균 휴식",
+                        title: "Average Rest",
                         value: strength.averageRestDuration.map(
                             formatDuration
                         ) ?? "-"
@@ -231,7 +231,7 @@ struct WorkoutReportView: View {
 
                 if !viewModel.strengthSets.isEmpty {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text("세트 기록")
+                        Text("Set History")
                             .font(.headline)
 
                         ForEach(viewModel.strengthSets) { set in
@@ -253,35 +253,35 @@ struct WorkoutReportView: View {
                     spacing: 12
                 ) {
                     reportMetric(
-                        title: "거리",
+                        title: "Distance",
                         value: formatDistance(
                             cardio.distanceMeters
                         )
                     )
 
                     reportMetric(
-                        title: "평균 페이스",
+                        title: "Average Pace",
                         value: formatPace(
                             cardio.averagePaceSecondsPerKilometer
                         )
                     )
 
                     reportMetric(
-                        title: "평균 속도",
+                        title: "Average Speed",
                         value: formatSpeed(
                             cardio.averageSpeedMetersPerSecond
                         )
                     )
 
                     reportMetric(
-                        title: "최고 속도",
+                        title: "Maximum Speed",
                         value: formatSpeed(
                             cardio.maximumSpeedMetersPerSecond
                         )
                     )
 
                     reportMetric(
-                        title: "케이던스",
+                        title: "Cadence",
                         value: formatNumber(
                             cardio.averageCadence,
                             suffix: " /min"
@@ -289,7 +289,7 @@ struct WorkoutReportView: View {
                     )
 
                     reportMetric(
-                        title: "평균 파워",
+                        title: "Average Power",
                         value: formatNumber(
                             cardio.averagePowerWatts,
                             suffix: " W"
@@ -297,7 +297,7 @@ struct WorkoutReportView: View {
                     )
 
                     reportMetric(
-                        title: "고도 상승",
+                        title: "Elevation Gain",
                         value: formatNumber(
                             cardio.elevationGainMeters,
                             suffix: " m"
@@ -305,7 +305,7 @@ struct WorkoutReportView: View {
                     )
 
                     reportMetric(
-                        title: "GPS 이동거리",
+                        title: "GPS Distance",
                         value: formatDistance(
                             cardio.routeDistanceMeters
                         )
@@ -330,7 +330,7 @@ struct WorkoutReportView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("이동 경로")
+                Text("Route")
                     .font(.headline)
 
                 Spacer()
@@ -417,28 +417,28 @@ struct WorkoutReportView: View {
         reportSection(title: "Details") {
             VStack(spacing: 12) {
                 detailRow(
-                    title: "전체 경과 시간",
+                    title: "Elapsed Time",
                     value: formatDuration(
                         viewModel.report.summary.elapsedDuration
                     )
                 )
 
                 detailRow(
-                    title: "일시정지 시간",
+                    title: "Paused Time",
                     value: formatDuration(
                         viewModel.report.summary.pausedDuration
                     )
                 )
 
                 detailRow(
-                    title: "걸음 수",
+                    title: "Steps",
                     value: formatNumber(
                         viewModel.report.summary.stepCount
                     )
                 )
 
                 detailRow(
-                    title: "심박 샘플",
+                    title: "Heart Rate Samples",
                     value: "\(viewModel.report.heart.sampleCount)"
                 )
             }

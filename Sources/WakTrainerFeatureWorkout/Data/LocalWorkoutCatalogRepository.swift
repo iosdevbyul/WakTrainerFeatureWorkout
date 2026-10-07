@@ -14,37 +14,37 @@ struct LocalWorkoutCatalogRepository: WorkoutCatalogRepository {
         [
             WorkoutDefinition(
                 id: "squat",
-                name: "스쿼트",
+                name: "Squat",
                 category: .strength,
                 type: .staticWorkout
             ),
             WorkoutDefinition(
                 id: "bench_press",
-                name: "벤치프레스",
+                name: "Bench Press",
                 category: .strength,
                 type: .staticWorkout
             ),
             WorkoutDefinition(
                 id: "running",
-                name: "달리기",
+                name: "Running",
                 category: .cardio,
                 type: .dynamicWorkout
             ),
             WorkoutDefinition(
                 id: "walking",
-                name: "걷기",
+                name: "Walking",
                 category: .cardio,
                 type: .dynamicWorkout
             ),
             WorkoutDefinition(
                 id: "indoor_cycling",
-                name: "실내 자전거",
+                name: "Indoor Cycling",
                 category: .cardio,
                 type: .staticWorkout
             ),
             WorkoutDefinition(
                 id: "outdoor_cycling",
-                name: "야외 자전거",
+                name: "Outdoor Cycling",
                 category: .cardio,
                 type: .dynamicWorkout
             )
