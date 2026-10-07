@@ -39,6 +39,17 @@ final class WorkoutHistoryViewModel: ObservableObject {
         }
 
         do {
+            let storedSessions =
+                try await sessionRepository
+                    .fetchSessions()
+
+            let completedSessions =
+                storedSessions
+                    .filter {
+                        $0.persistenceState
+                            == .completed
+                    }
+
             if let selectedDate {
                 let startDate =
                     calendar.startOfDay(
@@ -56,19 +67,25 @@ final class WorkoutHistoryViewModel: ObservableObject {
                 }
 
                 sessions =
-                    try await sessionRepository
-                        .fetchCompletedSessions(
-                            from: startDate,
-                            to: endDate
-                        )
+                    completedSessions
+                        .filter {
+                            let startedAt =
+                                $0.session.timing
+                                    .startDate
+
+                            return startedAt >= startDate
+                                && startedAt < endDate
+                        }
+                        .sorted {
+                            $0.session.timing
+                                .startDate
+                                <
+                            $1.session.timing
+                                .startDate
+                        }
             } else {
                 sessions =
-                    try await sessionRepository
-                        .fetchSessions()
-                        .filter {
-                            $0.persistenceState
-                                == .completed
-                        }
+                    completedSessions
                         .sorted {
                             $0.session.timing
                                 .startDate

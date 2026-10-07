@@ -9,7 +9,7 @@ import WakTrainerDomainWorkout
 @Suite("WorkoutHistoryViewModel")
 struct WorkoutHistoryViewModelTests {
 
-    @Test("selected date queries the exact calendar day")
+    @Test("selected date filters the exact calendar day")
     func selectedDateUsesDayRange() async throws {
         var calendar = Calendar(
             identifier: .gregorian
@@ -25,13 +25,6 @@ struct WorkoutHistoryViewModelTests {
             calendar.startOfDay(
                 for: selectedDate
             )
-        let endDate = try #require(
-            calendar.date(
-                byAdding: .day,
-                value: 1,
-                to: startDate
-            )
-        )
 
         let first = makeStoredSession(
             startedAt:
@@ -44,11 +37,36 @@ struct WorkoutHistoryViewModelTests {
                 startDate
                     .addingTimeInterval(7_200)
         )
+        let previousDay = makeStoredSession(
+            id: UUID(),
+            startedAt:
+                startDate
+                    .addingTimeInterval(-3_600)
+        )
+        let nextDay = makeStoredSession(
+            id: UUID(),
+            startedAt:
+                startDate
+                    .addingTimeInterval(86_400)
+        )
+        let incomplete = makeStoredSession(
+            id: UUID(),
+            startedAt:
+                startDate
+                    .addingTimeInterval(4_500),
+            persistenceState:
+                .inProgress
+        )
 
         let repository =
             HistoryMockWorkoutSessionRepository(
-                completedInRange:
-                    [first, second]
+                allSessions: [
+                    nextDay,
+                    incomplete,
+                    second,
+                    previousDay,
+                    first
+                ]
             )
 
         let viewModel =
@@ -62,18 +80,6 @@ struct WorkoutHistoryViewModelTests {
             calendar: calendar
         )
 
-        #expect(
-            repository.requestedRanges.count
-                == 1
-        )
-        #expect(
-            repository.requestedRanges
-                .first?.0 == startDate
-        )
-        #expect(
-            repository.requestedRanges
-                .first?.1 == endDate
-        )
         #expect(
             viewModel.sessions
                 == [first, second]
@@ -206,20 +212,12 @@ private final class HistoryMockWorkoutSessionRepository:
 
     var allSessions:
         [StoredWorkoutSession]
-    var completedInRange:
-        [StoredWorkoutSession]
-    private(set) var requestedRanges:
-        [(Date, Date)] = []
 
     init(
         allSessions:
-            [StoredWorkoutSession] = [],
-        completedInRange:
             [StoredWorkoutSession] = []
     ) {
         self.allSessions = allSessions
-        self.completedInRange =
-            completedInRange
     }
 
     func saveCheckpoint(
@@ -254,10 +252,17 @@ private final class HistoryMockWorkoutSessionRepository:
         from startDate: Date,
         to endDate: Date
     ) async throws -> [StoredWorkoutSession] {
-        requestedRanges.append(
-            (startDate, endDate)
-        )
-        return completedInRange
+        allSessions
+            .filter {
+                $0.persistenceState == .completed
+            }
+            .filter {
+                let startedAt =
+                    $0.session.timing.startDate
+
+                return startedAt >= startDate
+                    && startedAt < endDate
+            }
     }
 
     func deleteSession(
