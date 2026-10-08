@@ -24,6 +24,7 @@ public struct WorkoutFeatureView: View {
         (any WorkoutSessionRepository)?
     private let preferenceStore:
         any WorkoutLauncherPreferenceStore
+    private let weightUnit: WorkoutWeightUnit
     private let maximumHeartRate: Double?
     private let startsFromDirectWorkout: Bool
     private let onCancelled:
@@ -33,6 +34,7 @@ public struct WorkoutFeatureView: View {
 
     public init(
         maximumHeartRate: Double? = nil,
+        weightUnit: WorkoutWeightUnit = .kg,
         onFinished:
             @escaping (WorkoutSession) -> Void
     ) {
@@ -45,6 +47,7 @@ public struct WorkoutFeatureView: View {
                 UserDefaultsWorkoutLauncherPreferenceStore(),
             maximumHeartRate:
                 maximumHeartRate,
+            weightUnit: weightUnit,
             onCancelled: nil,
             onFinished:
                 onFinished
@@ -64,6 +67,7 @@ public struct WorkoutFeatureView: View {
             any WorkoutLauncherPreferenceStore =
                 UserDefaultsWorkoutLauncherPreferenceStore(),
         maximumHeartRate: Double? = nil,
+        weightUnit: WorkoutWeightUnit = .kg,
         onCancelled:
             (() -> Void)? = nil,
         onFinished:
@@ -87,6 +91,7 @@ public struct WorkoutFeatureView: View {
             preferenceStore
         self.maximumHeartRate =
             maximumHeartRate
+        self.weightUnit = weightUnit
         self.startsFromDirectWorkout =
             initialWorkout != nil
         self.onCancelled =
@@ -141,6 +146,7 @@ public struct WorkoutFeatureView: View {
                     ),
                 sessionRepository:
                     sessionRepository,
+                weightUnit: weightUnit,
                 onCancel: {
                     if startsFromDirectWorkout {
                         onCancelled?()
@@ -164,7 +170,8 @@ public struct WorkoutFeatureView: View {
             WorkoutReportView(
                 session: session,
                 maximumHeartRate:
-                    maximumHeartRate
+                    maximumHeartRate,
+                weightUnit: weightUnit
             ) {
                 onFinished(
                     session

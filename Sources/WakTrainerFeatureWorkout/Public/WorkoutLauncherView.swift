@@ -9,6 +9,7 @@ public struct WorkoutLauncherView: View {
     @StateObject private var viewModel:
         WorkoutLauncherViewModel
 
+    private let weightUnit: WorkoutWeightUnit
     private let maximumHeartRate: Double?
     private let sessionRepository:
         (any WorkoutSessionRepository)?
@@ -19,6 +20,7 @@ public struct WorkoutLauncherView: View {
 
     public init(
         maximumHeartRate: Double? = nil,
+        weightUnit: WorkoutWeightUnit = .kg,
         onFinished:
             @escaping (WorkoutSession) -> Void
     ) {
@@ -37,6 +39,7 @@ public struct WorkoutLauncherView: View {
 
         self.maximumHeartRate =
             maximumHeartRate
+        self.weightUnit = weightUnit
         self.sessionRepository =
             sessionRepository
         self.preferenceStore =
@@ -479,6 +482,7 @@ private extension WorkoutLauncherView {
                     preferenceStore,
                 maximumHeartRate:
                     maximumHeartRate,
+                weightUnit: weightUnit,
                 onCancelled: {
                     viewModel
                         .dismissWorkoutFlow()
@@ -504,6 +508,7 @@ private extension WorkoutLauncherView {
                     preferenceStore,
                 maximumHeartRate:
                     maximumHeartRate,
+                weightUnit: weightUnit,
                 onCancelled: {
                     viewModel
                         .dismissWorkoutFlow()
@@ -533,6 +538,7 @@ private extension WorkoutLauncherView {
                     preferenceStore,
                 maximumHeartRate:
                     maximumHeartRate,
+                weightUnit: weightUnit,
                 onCancelled: {
                     viewModel
                         .dismissWorkoutFlow()

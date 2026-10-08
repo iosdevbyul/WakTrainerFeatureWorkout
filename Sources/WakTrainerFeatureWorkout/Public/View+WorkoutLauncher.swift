@@ -5,6 +5,7 @@ public extension View {
 
     func wakTrainerWorkoutLauncher(
         maximumHeartRate: Double? = nil,
+        weightUnit: WorkoutWeightUnit = .kg,
         bottomPadding: CGFloat = 12,
         onFinished: @escaping (WorkoutSession) -> Void
     ) -> some View {
@@ -13,6 +14,7 @@ public extension View {
         ) {
             WorkoutLauncherView(
                 maximumHeartRate: maximumHeartRate,
+                weightUnit: weightUnit,
                 onFinished: onFinished
             )
             .padding(.horizontal, 16)

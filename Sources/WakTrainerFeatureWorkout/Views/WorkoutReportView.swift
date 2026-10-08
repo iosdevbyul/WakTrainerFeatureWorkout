@@ -8,11 +8,13 @@ struct WorkoutReportView: View {
 
     @StateObject private var viewModel: WorkoutReportViewModel
 
+    private let weightUnit: WorkoutWeightUnit
     private let onDone: () -> Void
 
     init(
         session: WorkoutSession,
         maximumHeartRate: Double? = nil,
+        weightUnit: WorkoutWeightUnit = .kg,
         onDone: @escaping () -> Void
     ) {
         _viewModel = StateObject(
@@ -22,6 +24,7 @@ struct WorkoutReportView: View {
             )
         )
 
+        self.weightUnit = weightUnit
         self.onDone = onDone
     }
 
@@ -199,24 +202,24 @@ struct WorkoutReportView: View {
                     reportMetric(
                         title: "Total Volume",
                         value: formatNumber(
-                            strength.totalVolumeKilograms,
-                            suffix: " kg"
+                            weightUnit.fromKilograms(strength.totalVolumeKilograms),
+                            suffix: " \(weightUnit.rawValue)"
                         )
                     )
 
                     reportMetric(
                         title: "Maximum Weight",
                         value: formatNumber(
-                            strength.maximumWeightKilograms,
-                            suffix: " kg"
+                            weightUnit.fromKilograms(strength.maximumWeightKilograms),
+                            suffix: " \(weightUnit.rawValue)"
                         )
                     )
 
                     reportMetric(
                         title: "Estimated 1RM",
                         value: formatNumber(
-                            strength.bestEstimatedOneRepMaxKilograms,
-                            suffix: " kg",
+                            weightUnit.fromKilograms(strength.bestEstimatedOneRepMaxKilograms),
+                            suffix: " \(weightUnit.rawValue)",
                             decimals: 1
                         )
                     )
@@ -637,8 +640,9 @@ struct WorkoutReportView: View {
         }
 
         return String(
-            format: "%.1f kg × %@",
-            weight,
+            format: "%.1f %@ × %@",
+            weightUnit.fromKilograms(weight),
+            weightUnit.rawValue,
             repetitions
         )
     }
