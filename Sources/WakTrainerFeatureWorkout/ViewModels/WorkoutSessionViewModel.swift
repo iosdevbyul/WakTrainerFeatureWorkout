@@ -437,7 +437,9 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     private func stopWorkout() async {
         snapshotTimeoutTask?.cancel()
-        locationManager?.stopTracking()
+        if workout.requiresLocationTracking || strengthLocationPolicy == .singleLocation {
+            locationManager?.stopTracking()
+        }
         restTimerManager.stop()
         isResting = false
 
