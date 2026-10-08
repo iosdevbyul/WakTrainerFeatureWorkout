@@ -5,16 +5,9 @@ import WakTrainerDomainWorkout
 @MainActor
 final class WorkoutLauncherViewModel: ObservableObject {
 
-    enum QuickWorkout: String, Sendable {
-        case running = "running"
-        case walking = "walking"
-        case indoorCycling = "indoor_cycling"
-        case outdoorCycling = "outdoor_cycling"
-    }
-
     enum Destination: Identifiable, Equatable {
         case workout(WorkoutDefinition)
-        case category(WorkoutCategory)
+        case catalog
         case recovered(
             WorkoutDefinition,
             StoredWorkoutSession
@@ -25,8 +18,8 @@ final class WorkoutLauncherViewModel: ObservableObject {
             case .workout(let workout):
                 "workout-\(workout.id)"
 
-            case .category(let category):
-                "category-\(category.rawValue)"
+            case .catalog:
+                "catalog"
 
             case .recovered(_, let storedSession):
                 "recovered-\(storedSession.session.id.uuidString)"
@@ -35,22 +28,59 @@ final class WorkoutLauncherViewModel: ObservableObject {
     }
 
     @Published var isExpanded = false
-    @Published var isCyclingExpanded = false
     @Published var destination: Destination?
     @Published var errorMessage: String?
     @Published var recoverableSession: StoredWorkoutSession?
     @Published var isRecoveryPromptPresented = false
 
+    @Published private(set) var quickWorkouts:
+        [WorkoutDefinition] = []
+    @Published private(set) var isLoadingWorkouts = false
+
     private let fetchWorkoutsUseCase: FetchWorkoutsUseCase
-    private let sessionRepository: (any WorkoutSessionRepository)?
-    private var cachedWorkouts: [WorkoutDefinition] = []
+    private let sessionRepository:
+        (any WorkoutSessionRepository)?
+    private let quickWorkoutLimit: Int
 
     init(
         fetchWorkoutsUseCase: FetchWorkoutsUseCase,
-        sessionRepository: (any WorkoutSessionRepository)? = nil
+        sessionRepository:
+            (any WorkoutSessionRepository)? = nil,
+        quickWorkoutLimit: Int = 4
     ) {
         self.fetchWorkoutsUseCase = fetchWorkoutsUseCase
         self.sessionRepository = sessionRepository
+        self.quickWorkoutLimit = max(
+            0,
+            quickWorkoutLimit
+        )
+    }
+
+    func loadWorkouts() async {
+        guard !isLoadingWorkouts else {
+            return
+        }
+
+        isLoadingWorkouts = true
+
+        defer {
+            isLoadingWorkouts = false
+        }
+
+        do {
+            let workouts =
+                try await fetchWorkoutsUseCase.execute()
+
+            quickWorkouts =
+                Array(
+                    workouts.prefix(
+                        quickWorkoutLimit
+                    )
+                )
+        } catch {
+            quickWorkouts = []
+            errorMessage = error.localizedDescription
+        }
     }
 
     func loadRecoverableWorkout() async {
@@ -74,39 +104,22 @@ final class WorkoutLauncherViewModel: ObservableObject {
 
     func toggleLauncher() {
         isExpanded.toggle()
-
-        if !isExpanded {
-            isCyclingExpanded = false
-        }
     }
 
     func closeLauncher() {
         isExpanded = false
-        isCyclingExpanded = false
-    }
-
-    func toggleCyclingOptions() {
-        isCyclingExpanded.toggle()
-    }
-
-    func openStrengthSelection() {
-        closeLauncher()
-        destination = .category(.strength)
     }
 
     func openWorkout(
-        _ quickWorkout: QuickWorkout
-    ) async {
-        do {
-            let workout = try await resolveWorkout(
-                quickWorkout
-            )
+        _ workout: WorkoutDefinition
+    ) {
+        closeLauncher()
+        destination = .workout(workout)
+    }
 
-            closeLauncher()
-            destination = .workout(workout)
-        } catch {
-            errorMessage = error.localizedDescription
-        }
+    func openCatalog() {
+        closeLauncher()
+        destination = .catalog
     }
 
     func openRecoverableWorkout() {
@@ -167,27 +180,6 @@ final class WorkoutLauncherViewModel: ObservableObject {
 
 private extension WorkoutLauncherViewModel {
 
-    func resolveWorkout(
-        _ quickWorkout: QuickWorkout
-    ) async throws -> WorkoutDefinition {
-        if cachedWorkouts.isEmpty {
-            cachedWorkouts =
-                try await fetchWorkoutsUseCase.execute()
-        }
-
-        guard let workout = cachedWorkouts.first(
-            where: {
-                $0.id == quickWorkout.rawValue
-            }
-        ) else {
-            throw WorkoutLauncherError.workoutNotFound(
-                quickWorkout.rawValue
-            )
-        }
-
-        return workout
-    }
-
     func makeWorkoutDefinition(
         from storedSession: StoredWorkoutSession
     ) throws -> WorkoutDefinition {
@@ -196,9 +188,10 @@ private extension WorkoutLauncherViewModel {
         guard let category = WorkoutCategory(
             rawValue: session.workout.category
         ) else {
-            throw WorkoutLauncherError.invalidStoredCategory(
-                session.workout.category
-            )
+            throw WorkoutLauncherError
+                .invalidStoredCategory(
+                    session.workout.category
+                )
         }
 
         return WorkoutDefinition(
@@ -211,16 +204,14 @@ private extension WorkoutLauncherViewModel {
 }
 
 private enum WorkoutLauncherError: LocalizedError {
-    case workoutNotFound(String)
     case invalidStoredCategory(String)
 
     var errorDescription: String? {
         switch self {
-        case .workoutNotFound(let id):
-            "운동 정보를 찾을 수 없습니다: \(id)"
-
-        case .invalidStoredCategory(let category):
-            "저장된 운동 종류를 복구할 수 없습니다: \(category)"
+        case .invalidStoredCategory(
+            let category
+        ):
+            "The saved workout category could not be restored: \(category)"
         }
     }
 }
