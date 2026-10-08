@@ -563,7 +563,7 @@ struct WorkoutReportView: View {
                 Spacer()
 
                 Text(
-                    "\(exercise.strengthSets.filter(\\.isCompleted).count) sets"
+                    "\(exercise.strengthSets.filter(\.isCompleted).count) sets"
                 )
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -571,7 +571,7 @@ struct WorkoutReportView: View {
 
             ForEach(
                 exercise.strengthSets
-                    .filter(\\.isCompleted)
+                    .filter(\.isCompleted)
             ) { set in
                 strengthSetRow(set)
             }
