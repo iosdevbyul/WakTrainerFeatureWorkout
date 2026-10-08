@@ -1,23 +1,21 @@
-//
-//  WorkoutTrackerView.swift
-//  WakTrainerFeatureWorkout
-//
-//  Created by COMATOKI on 2026-08-25.
-//
-
 import SwiftUI
 
 struct WorkoutTrackerView: View {
     @ObservedObject private var viewModel: WorkoutSessionViewModel
+
+    private let columns = [
+        GridItem(.flexible(), spacing: 12),
+        GridItem(.flexible(), spacing: 12)
+    ]
 
     init(viewModel: WorkoutSessionViewModel) {
         self.viewModel = viewModel
     }
 
     var body: some View {
-        VStack(spacing: 16) {
+        LazyVGrid(columns: columns, spacing: 12) {
             MetricCard(
-                title: "심박수",
+                title: "Heart Rate",
                 value: "\(Int(viewModel.heartRate))",
                 unit: "BPM",
                 iconName: "heart.fill",
@@ -25,7 +23,7 @@ struct WorkoutTrackerView: View {
             )
 
             MetricCard(
-                title: "소모 칼로리",
+                title: "Calories",
                 value: "\(Int(viewModel.activeCalories))",
                 unit: "kcal",
                 iconName: "flame.fill",
@@ -33,19 +31,16 @@ struct WorkoutTrackerView: View {
             )
 
             MetricCard(
-                title: "걸음 수",
+                title: "Steps",
                 value: "\(Int(viewModel.stepCount))",
-                unit: "걸음",
+                unit: "steps",
                 iconName: "shoeprints.fill",
                 iconColor: .blue
             )
 
             MetricCard(
-                title: "이동 거리",
-                value: String(
-                    format: "%.2f",
-                    viewModel.distanceKilometers
-                ),
+                title: "Distance",
+                value: String(format: "%.2f", viewModel.distanceKilometers),
                 unit: "km",
                 iconName: "figure.walk",
                 iconColor: .green

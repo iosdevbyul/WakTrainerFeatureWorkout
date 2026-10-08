@@ -1,10 +1,3 @@
-//
-//  MetricCard.swift
-//  WakTrainerFeatureWorkout
-//
-//  Created by COMATOKI on 2026-08-25.
-//
-
 import SwiftUI
 
 internal struct MetricCard: View {
@@ -15,31 +8,32 @@ internal struct MetricCard: View {
     let iconColor: Color
 
     var body: some View {
-        HStack {
+        VStack(alignment: .leading, spacing: 8) {
             Image(systemName: iconName)
-                .font(.title)
-                .foregroundColor(iconColor)
-                .frame(width: 44)
+                .font(.title2)
+                .foregroundStyle(iconColor)
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(value)
-                        .font(.title2)
-                        .bold()
-                    Text(unit)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-            }
+            Text(title)
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
-            Spacer()
+            Spacer(minLength: 0)
+
+            Text(value)
+                .font(.title2.bold())
+                .monospacedDigit()
+                .minimumScaleFactor(0.65)
+                .lineLimit(1)
+
+            Text(unit)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
-        .padding()
-        .background(Color(.secondarySystemBackground)) // 👈 Color(uiColor:) 대신 이와 같이 변경
-        .cornerRadius(16)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .padding(14)
+        .aspectRatio(1, contentMode: .fit)
+        .background(Color(.secondarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .accessibilityElement(children: .combine)
     }
 }
