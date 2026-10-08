@@ -14,7 +14,7 @@
   A00000000000000000000008 = {isa = XCBuildConfiguration; buildSettings = { ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES; CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; GENERATE_INFOPLIST_FILE = YES; INFOPLIST_KEY_CFBundleDisplayName = WorkoutFeatureDemo; INFOPLIST_KEY_UILaunchScreen_Generation = YES; INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES; INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "Location supports outdoor workout tracking."; INFOPLIST_KEY_NSHealthShareUsageDescription = "Workout data may include heart rate and activity metrics."; INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Workout data may be recorded to Health."; IPHONEOS_DEPLOYMENT_TARGET = 17.0; MARKETING_VERSION = 1.0; PRODUCT_BUNDLE_IDENTIFIER = com.iosdevbyul.WorkoutFeatureDemo; PRODUCT_NAME = "$(TARGET_NAME)"; SDKROOT = iphoneos; SWIFT_VERSION = 5.9; TARGETED_DEVICE_FAMILY = "1,2"; }; name = Release; };
   A00000000000000000000009 = {isa = PBXBuildFile; fileRef = A0000000000000000000000C; };
   A0000000000000000000000A = {isa = PBXBuildFile; productRef = A00000000000000000000005; };
-  A0000000000000000000000B = {isa = XCLocalSwiftPackageReference; relativePath = "../.."; };
+  A0000000000000000000000B = {isa = XCLocalSwiftPackageReference; relativePath = ".."; };
   A0000000000000000000000C = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutFeatureDemoApp.swift; sourceTree = "<group>"; };
   A0000000000000000000000D = {isa = PBXGroup; children = (A0000000000000000000000E, A0000000000000000000000F,); sourceTree = "<group>"; };
   A0000000000000000000000E = {isa = PBXGroup; children = (A0000000000000000000000C,); path = WorkoutFeatureDemo; sourceTree = "<group>"; };
