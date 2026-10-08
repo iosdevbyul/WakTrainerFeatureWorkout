@@ -27,26 +27,14 @@ struct LocalWorkoutCatalogRepository:
                 type: .dynamicWorkout
             ),
             WorkoutDefinition(
-                id: "outdoor_cycling",
-                name: "Outdoor Cycling",
+                id: "cycling",
+                name: "Cycling",
                 category: .cardio,
                 type: .dynamicWorkout
             ),
             WorkoutDefinition(
-                id: "squat",
-                name: "Squat",
-                category: .strength,
-                type: .staticWorkout
-            ),
-            WorkoutDefinition(
-                id: "indoor_cycling",
-                name: "Indoor Cycling",
-                category: .cardio,
-                type: .staticWorkout
-            ),
-            WorkoutDefinition(
-                id: "bench_press",
-                name: "Bench Press",
+                id: "strength_training",
+                name: "Strength Training",
                 category: .strength,
                 type: .staticWorkout
             )
