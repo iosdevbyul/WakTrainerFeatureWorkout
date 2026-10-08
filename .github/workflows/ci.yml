@@ -88,6 +88,7 @@ jobs:
             -scheme WorkoutFeatureDemo \
             -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}" \
             -configuration Debug \
-            SWIFT_ENABLE_EXPLICIT_MODULES=NO \
+            ARCHS=arm64 \
+            ONLY_ACTIVE_ARCH=YES \
             CODE_SIGNING_ALLOWED=NO \
             build
