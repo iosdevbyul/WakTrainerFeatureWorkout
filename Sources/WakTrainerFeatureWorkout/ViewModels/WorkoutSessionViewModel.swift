@@ -600,8 +600,6 @@ final class WorkoutSessionViewModel: ObservableObject {
     ) {
         guard let exercise =
                 activeStrengthExercise,
-              let equipment =
-                activeStrengthEquipment,
               !strengthSets.isEmpty else {
             clearActiveStrengthExercise()
             return
@@ -619,7 +617,7 @@ final class WorkoutSessionViewModel: ObservableObject {
                         exercise.name,
                     kind: .strength,
                     strengthEquipment:
-                        equipment,
+                        activeStrengthEquipment,
                     startDate:
                         activeStrengthExerciseStartDate
                         ?? sessionStartDate
@@ -1135,8 +1133,6 @@ final class WorkoutSessionViewModel: ObservableObject {
 
         guard let exercise =
                 activeStrengthExercise,
-              let equipment =
-                activeStrengthEquipment,
               !strengthSets.isEmpty else {
             return records
         }
@@ -1149,7 +1145,7 @@ final class WorkoutSessionViewModel: ObservableObject {
                     exercise.name,
                 kind: .strength,
                 strengthEquipment:
-                    equipment,
+                    activeStrengthEquipment,
                 startDate:
                     activeStrengthExerciseStartDate
                     ?? sessionStartDate
