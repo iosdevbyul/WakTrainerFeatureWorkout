@@ -9,114 +9,118 @@ import WakTrainerDomainWorkout
 @Suite("WorkoutLauncherViewModel")
 struct WorkoutLauncherViewModelTests {
 
-    @Test("launcher toggles expanded state and resets cycling state when closed")
+    @Test("launcher toggles expanded state")
     func launcherExpansionState() {
         let viewModel = makeViewModel()
 
         viewModel.toggleLauncher()
 
         #expect(viewModel.isExpanded)
-        #expect(!viewModel.isCyclingExpanded)
-
-        viewModel.toggleCyclingOptions()
-
-        #expect(viewModel.isCyclingExpanded)
 
         viewModel.toggleLauncher()
 
         #expect(!viewModel.isExpanded)
-        #expect(!viewModel.isCyclingExpanded)
     }
 
-    @Test("strength opens strength category selection")
-    func strengthOpensStrengthSelection() {
+    @Test("quick start comes from the workout catalog")
+    func quickStartUsesCatalogOrder() async {
         let viewModel = makeViewModel()
 
-        viewModel.toggleLauncher()
-        viewModel.openStrengthSelection()
+        await viewModel.loadWorkouts()
 
-        #expect(!viewModel.isExpanded)
+        #expect(
+            viewModel.quickWorkouts.map(\.id)
+                == [
+                    "running",
+                    "walking",
+                    "swimming",
+                    "squat"
+                ]
+        )
+        #expect(!viewModel.isLoadingWorkouts)
+        #expect(viewModel.errorMessage == nil)
+    }
 
-        guard case .category(let category) =
-                viewModel.destination else {
+    @Test("quick start limit is configurable")
+    func quickStartRespectsLimit() async {
+        let viewModel = makeViewModel(
+            quickWorkoutLimit: 2
+        )
+
+        await viewModel.loadWorkouts()
+
+        #expect(
+            viewModel.quickWorkouts.map(\.id)
+                == [
+                    "running",
+                    "walking"
+                ]
+        )
+    }
+
+    @Test("any catalog workout can open without launcher enum support")
+    func arbitraryWorkoutOpensDirectly() async {
+        let viewModel = makeViewModel()
+
+        await viewModel.loadWorkouts()
+
+        guard let swimming =
+                viewModel.quickWorkouts.first(
+                    where: {
+                        $0.id == "swimming"
+                    }
+                ) else {
             Issue.record(
-                "Expected strength category destination"
+                "Expected swimming in quick workouts"
             )
             return
         }
 
-        #expect(category == .strength)
-    }
-
-    @Test("running resolves catalog workout and opens workout flow")
-    func runningResolvesWorkout() async {
-        let viewModel = makeViewModel()
-
-        await viewModel.openWorkout(
-            .running
+        viewModel.openWorkout(
+            swimming
         )
 
         guard case .workout(let workout) =
                 viewModel.destination else {
             Issue.record(
-                "Expected running workout destination"
+                "Expected workout destination"
             )
             return
         }
 
-        #expect(workout.id == "running")
-        #expect(workout.category == .cardio)
-        #expect(workout.type == .dynamicWorkout)
-        #expect(viewModel.errorMessage == nil)
+        #expect(workout.id == "swimming")
+        #expect(workout.name == "Swimming")
     }
 
-    @Test("cycling quick actions resolve indoor and outdoor workouts")
-    func cyclingResolvesBothWorkoutTypes() async {
+    @Test("browse all opens workout catalog")
+    func browseAllOpensCatalog() {
         let viewModel = makeViewModel()
 
-        await viewModel.openWorkout(
-            .indoorCycling
-        )
+        viewModel.toggleLauncher()
+        viewModel.openCatalog()
 
-        guard case .workout(let indoor) =
+        #expect(!viewModel.isExpanded)
+
+        guard case .catalog =
                 viewModel.destination else {
             Issue.record(
-                "Expected indoor cycling destination"
+                "Expected catalog destination"
             )
             return
         }
-
-        #expect(indoor.id == "indoor_cycling")
-        #expect(indoor.type == .staticWorkout)
-
-        viewModel.dismissWorkoutFlow()
-
-        await viewModel.openWorkout(
-            .outdoorCycling
-        )
-
-        guard case .workout(let outdoor) =
-                viewModel.destination else {
-            Issue.record(
-                "Expected outdoor cycling destination"
-            )
-            return
-        }
-
-        #expect(outdoor.id == "outdoor_cycling")
-        #expect(outdoor.type == .dynamicWorkout)
     }
 
-
     @Test("incomplete workout is exposed as a recovery destination")
-    func incompleteWorkoutCanBeRecovered() async throws {
+    func incompleteWorkoutCanBeRecovered()
+        async throws {
         let stored = makeStoredSession()
         let sessionRepository =
             LauncherMockWorkoutSessionRepository(
                 incomplete: [stored]
             )
         let viewModel = makeViewModel(
-            sessionRepository: sessionRepository
+            sessionRepository:
+                sessionRepository
         )
 
         await viewModel.loadRecoverableWorkout()
@@ -142,20 +146,26 @@ struct WorkoutLauncherViewModelTests {
         }
 
         #expect(workout.id == "running")
-        #expect(workout.category == .cardio)
-        #expect(workout.type == .dynamicWorkout)
+        #expect(
+            workout.category == .cardio
+        )
+        #expect(
+            workout.type == .dynamicWorkout
+        )
         #expect(recovered == stored)
     }
 
     @Test("discard removes the incomplete workout")
-    func incompleteWorkoutCanBeDiscarded() async {
+    func incompleteWorkoutCanBeDiscarded()
+        async {
         let stored = makeStoredSession()
         let sessionRepository =
             LauncherMockWorkoutSessionRepository(
                 incomplete: [stored]
             )
         let viewModel = makeViewModel(
-            sessionRepository: sessionRepository
+            sessionRepository:
+                sessionRepository
         )
 
         await viewModel.loadRecoverableWorkout()
@@ -172,87 +182,75 @@ struct WorkoutLauncherViewModelTests {
             !viewModel.isRecoveryPromptPresented
         )
     }
-
-    @Test("missing quick workout exposes launcher error")
-    func missingWorkoutExposesError() async {
-        let repository = LauncherMockWorkoutCatalogRepository(
-            workouts: []
-        )
-
-        let viewModel = WorkoutLauncherViewModel(
-            fetchWorkoutsUseCase: FetchWorkoutsUseCase(
-                repository: repository
-            )
-        )
-
-        await viewModel.openWorkout(
-            .walking
-        )
-
-        #expect(viewModel.destination == nil)
-        #expect(viewModel.errorMessage != nil)
-    }
 }
 
 private extension WorkoutLauncherViewModelTests {
 
     func makeViewModel(
         sessionRepository:
-            (any WorkoutSessionRepository)? = nil
+            (any WorkoutSessionRepository)? = nil,
+        quickWorkoutLimit: Int = 4
     ) -> WorkoutLauncherViewModel {
         let workouts = [
             WorkoutDefinition(
                 id: "running",
-                name: "달리기",
+                name: "Running",
                 category: .cardio,
                 type: .dynamicWorkout
             ),
             WorkoutDefinition(
                 id: "walking",
-                name: "걷기",
+                name: "Walking",
                 category: .cardio,
                 type: .dynamicWorkout
             ),
             WorkoutDefinition(
-                id: "indoor_cycling",
-                name: "실내 자전거",
+                id: "swimming",
+                name: "Swimming",
                 category: .cardio,
                 type: .staticWorkout
             ),
             WorkoutDefinition(
-                id: "outdoor_cycling",
-                name: "야외 자전거",
-                category: .cardio,
-                type: .dynamicWorkout
+                id: "squat",
+                name: "Squat",
+                category: .strength,
+                type: .staticWorkout
             ),
             WorkoutDefinition(
-                id: "squat",
-                name: "스쿼트",
+                id: "bench_press",
+                name: "Bench Press",
                 category: .strength,
                 type: .staticWorkout
             )
         ]
 
-        let repository = LauncherMockWorkoutCatalogRepository(
-            workouts: workouts
-        )
+        let repository =
+            LauncherMockWorkoutCatalogRepository(
+                workouts: workouts
+            )
 
         return WorkoutLauncherViewModel(
-            fetchWorkoutsUseCase: FetchWorkoutsUseCase(
-                repository: repository
-            ),
-            sessionRepository: sessionRepository
+            fetchWorkoutsUseCase:
+                FetchWorkoutsUseCase(
+                    repository: repository
+                ),
+            sessionRepository:
+                sessionRepository,
+            quickWorkoutLimit:
+                quickWorkoutLimit
         )
     }
 
-    func makeStoredSession() -> StoredWorkoutSession {
+    func makeStoredSession()
+        -> StoredWorkoutSession {
         let start = Date(
-            timeIntervalSince1970: 1_800_000_000
+            timeIntervalSince1970:
+                1_800_000_000
         )
         let session = WorkoutSession(
             workout: WorkoutIdentity(
                 workoutID: "running",
-                name: "달리기",
+                name: "Running",
                 category: "cardio",
                 type: .dynamicWorkout
             ),
@@ -280,11 +278,11 @@ private struct LauncherMockWorkoutCatalogRepository:
 
     let workouts: [WorkoutDefinition]
 
-    func fetchWorkouts() async throws -> [WorkoutDefinition] {
+    func fetchWorkouts() async throws
+        -> [WorkoutDefinition] {
         workouts
     }
 }
-
 
 @MainActor
 private final class LauncherMockWorkoutSessionRepository:
