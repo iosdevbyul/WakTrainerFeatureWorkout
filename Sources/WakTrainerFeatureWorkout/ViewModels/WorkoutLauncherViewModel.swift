@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import WakTrainerCoreModels
 import WakTrainerDomainWorkout
 
 struct WorkoutQuickStartItem:
@@ -312,8 +313,9 @@ private extension WorkoutLauncherViewModel {
 
         for stored in sessions {
             let id =
-                stored.session
-                    .workout.workoutID
+                normalizedWorkoutID(
+                    for: stored.session
+                )
             let usedAt =
                 stored.session
                     .timing.endDate
@@ -335,6 +337,25 @@ private extension WorkoutLauncherViewModel {
         }
 
         return result
+    }
+
+    func normalizedWorkoutID(
+        for session:
+            WakTrainerCoreModels.WorkoutSession
+    ) -> String {
+        if session.workout.category
+            == WorkoutCategory.strength.rawValue {
+            return "strength_training"
+        }
+
+        if session.workout.workoutID
+            == "outdoor_cycling"
+            || session.workout.workoutID
+                == "indoor_cycling" {
+            return "cycling"
+        }
+
+        return session.workout.workoutID
     }
 
     func compare(
@@ -430,6 +451,27 @@ private extension WorkoutLauncherViewModel {
                     session.workout
                         .category
                 )
+        }
+
+        if category == .strength {
+            return WorkoutDefinition(
+                id: "strength_training",
+                name: "Strength Training",
+                category: .strength,
+                type: .staticWorkout
+            )
+        }
+
+        if session.workout.workoutID
+            == "outdoor_cycling"
+            || session.workout.workoutID
+                == "indoor_cycling" {
+            return WorkoutDefinition(
+                id: "cycling",
+                name: "Cycling",
+                category: .cardio,
+                type: session.workout.type
+            )
         }
 
         return WorkoutDefinition(
