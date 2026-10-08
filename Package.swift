@@ -13,11 +13,11 @@ let package = Package(
     dependencies: [
         .package(
             url: "https://github.com/iosdevbyul/WakTrainerCoreModels",
-            branch: "main"
+            revision: "a19ca9d53b7b395b3c41efbbcc9883c53a672832"
         ),
         .package(
             url: "https://github.com/iosdevbyul/WakTrainerDomainWorkout",
-            branch: "main"
+            revision: "718bb0f176e64820404f6994b53830b48f2cfee7"
         ),
         .package(
             url: "https://github.com/iosdevbyul/WakTrainerFeatureTimer",
