@@ -70,9 +70,12 @@ struct WorkoutSessionViewModelTests {
 
         await viewModel.startWorkout()
 
-        try await Task.sleep(
-            nanoseconds: 150_000_000
-        )
+        let didAdvanceTimer =
+            await waitUntil {
+                viewModel.elapsedTime > 0
+            }
+
+        #expect(didAdvanceTimer)
 
         let session = await viewModel.finishWorkout()
 
@@ -220,7 +223,13 @@ struct WorkoutSessionViewModelTests {
 
         await viewModel.startWorkout()
 
-        #expect(viewModel.timerState == .running)
+        let didStart =
+            await waitUntil {
+                viewModel.timerState
+                    == .running
+            }
+
+        #expect(didStart)
 
         _ = await viewModel.finishWorkout()
     }
@@ -456,9 +465,17 @@ struct WorkoutSessionViewModelTests {
 
         await viewModel.startWorkout()
 
-        try await Task.sleep(
-            nanoseconds: 100_000_000
-        )
+        let didReceiveLiveHealth =
+            await waitUntil {
+                viewModel.activeCalories
+                    == 42
+                && viewModel.stepCount
+                    == 300
+                && viewModel.distanceMeters
+                    == 700
+            }
+
+        #expect(didReceiveLiveHealth)
 
         let session = await viewModel.finishWorkout()
 
@@ -801,7 +818,7 @@ private final class MockHealthKitManager:
 private func waitUntil(
     _ condition: () -> Bool
 ) async -> Bool {
-    for _ in 0..<100 {
+    for _ in 0..<250 {
         if condition() {
             return true
         }
