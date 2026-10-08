@@ -17,7 +17,7 @@ let package = Package(
         ),
         .package(
             url: "https://github.com/iosdevbyul/WakTrainerDomainWorkout",
-            revision: "718bb0f176e64820404f6994b53830b48f2cfee7"
+            revision: "2d7a90da1de1fc67fa9af17d43c46842fc577342"
         ),
         .package(
             url: "https://github.com/iosdevbyul/WakTrainerFeatureTimer",
