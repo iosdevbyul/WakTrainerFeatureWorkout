@@ -80,3 +80,13 @@ jobs:
             -configuration Debug \
             CODE_SIGNING_ALLOWED=NO \
             test
+
+      - name: Build standalone WorkoutFeatureDemo
+        run: |
+          xcodebuild \
+            -project Example/WorkoutFeatureDemo.xcodeproj \
+            -scheme WorkoutFeatureDemo \
+            -destination "platform=iOS Simulator,id=${{ steps.simulator.outputs.id }}" \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            build
