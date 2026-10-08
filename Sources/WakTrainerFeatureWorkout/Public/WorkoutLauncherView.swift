@@ -12,30 +12,47 @@ public struct WorkoutLauncherView: View {
     private let maximumHeartRate: Double?
     private let sessionRepository:
         (any WorkoutSessionRepository)?
-    private let onFinished: (WorkoutSession) -> Void
+    private let preferenceStore:
+        any WorkoutLauncherPreferenceStore
+    private let onFinished:
+        (WorkoutSession) -> Void
 
     public init(
         maximumHeartRate: Double? = nil,
-        onFinished: @escaping (WorkoutSession) -> Void
+        onFinished:
+            @escaping (WorkoutSession) -> Void
     ) {
         let catalogRepository =
             LocalWorkoutCatalogRepository()
-        let useCase = FetchWorkoutsUseCase(
-            repository: catalogRepository
-        )
+        let useCase =
+            FetchWorkoutsUseCase(
+                repository:
+                    catalogRepository
+            )
         let sessionRepository =
-            try? SwiftDataWorkoutSessionRepository()
+            try?
+            SwiftDataWorkoutSessionRepository()
+        let preferenceStore =
+            UserDefaultsWorkoutLauncherPreferenceStore()
 
-        self.maximumHeartRate = maximumHeartRate
-        self.sessionRepository = sessionRepository
-        self.onFinished = onFinished
+        self.maximumHeartRate =
+            maximumHeartRate
+        self.sessionRepository =
+            sessionRepository
+        self.preferenceStore =
+            preferenceStore
+        self.onFinished =
+            onFinished
 
         _viewModel = StateObject(
             wrappedValue:
                 WorkoutLauncherViewModel(
-                    fetchWorkoutsUseCase: useCase,
+                    fetchWorkoutsUseCase:
+                        useCase,
                     sessionRepository:
-                        sessionRepository
+                        sessionRepository,
+                    preferenceStore:
+                        preferenceStore
                 )
         )
     }
@@ -45,8 +62,12 @@ public struct WorkoutLauncherView: View {
             if viewModel.isExpanded {
                 launcherMenu
                     .transition(
-                        .move(edge: .bottom)
-                        .combined(with: .opacity)
+                        .move(
+                            edge: .bottom
+                        )
+                        .combined(
+                            with: .opacity
+                        )
                     )
             }
 
@@ -57,14 +78,23 @@ public struct WorkoutLauncherView: View {
                 response: 0.3,
                 dampingFraction: 0.8
             ),
-            value: viewModel.isExpanded
+            value:
+                viewModel.isExpanded
         )
         .task {
             await viewModel.loadWorkouts()
-            await viewModel.loadRecoverableWorkout()
+            await viewModel
+                .loadRecoverableWorkout()
         }
         .fullScreenCover(
-            item: $viewModel.destination
+            item:
+                $viewModel.destination,
+            onDismiss: {
+                Task {
+                    await viewModel
+                        .loadWorkouts()
+                }
+            }
         ) { destination in
             workoutFlow(
                 for: destination
@@ -73,11 +103,13 @@ public struct WorkoutLauncherView: View {
         .confirmationDialog(
             "Resume Workout",
             isPresented:
-                $viewModel.isRecoveryPromptPresented,
+                $viewModel
+                    .isRecoveryPromptPresented,
             titleVisibility: .visible
         ) {
             Button("Resume") {
-                viewModel.openRecoverableWorkout()
+                viewModel
+                    .openRecoverableWorkout()
             }
 
             Button(
@@ -94,17 +126,21 @@ public struct WorkoutLauncherView: View {
                 "Later",
                 role: .cancel
             ) {
-                viewModel.dismissRecoveryPrompt()
+                viewModel
+                    .dismissRecoveryPrompt()
             }
         } message: {
             if let stored =
-                    viewModel.recoverableSession {
+                    viewModel
+                        .recoverableSession {
                 Text(
-                    stored.session.workout.name
+                    stored.session
+                        .workout.name
                     + " · "
                     + formatDuration(
                         stored.session
-                            .timing.activeDuration
+                            .timing
+                            .activeDuration
                     )
                 )
             }
@@ -113,21 +149,28 @@ public struct WorkoutLauncherView: View {
             "Unable to Start Workout",
             isPresented: Binding(
                 get: {
-                    viewModel.errorMessage != nil
+                    viewModel
+                        .errorMessage != nil
                 },
                 set: { isPresented in
                     if !isPresented {
-                        viewModel.errorMessage = nil
+                        viewModel
+                            .errorMessage = nil
                     }
                 }
             )
         ) {
-            Button("OK", role: .cancel) {
-                viewModel.errorMessage = nil
+            Button(
+                "OK",
+                role: .cancel
+            ) {
+                viewModel
+                    .errorMessage = nil
             }
         } message: {
             Text(
-                viewModel.errorMessage ?? ""
+                viewModel.errorMessage
+                ?? ""
             )
         }
     }
@@ -141,7 +184,8 @@ private extension WorkoutLauncherView {
             spacing: 12
         ) {
             if let stored =
-                    viewModel.recoverableSession {
+                    viewModel
+                        .recoverableSession {
                 recoveryButton(
                     stored
                 )
@@ -153,13 +197,18 @@ private extension WorkoutLauncherView {
 
                 Spacer()
 
-                if viewModel.isLoadingWorkouts {
+                if viewModel
+                    .isLoadingWorkouts {
                     ProgressView()
-                        .controlSize(.small)
+                        .controlSize(
+                            .small
+                        )
                 }
             }
 
-            if !viewModel.quickWorkouts.isEmpty {
+            if !viewModel
+                .quickStartItems
+                .isEmpty {
                 LazyVGrid(
                     columns: [
                         GridItem(
@@ -174,19 +223,23 @@ private extension WorkoutLauncherView {
                     spacing: 10
                 ) {
                     ForEach(
-                        viewModel.quickWorkouts
-                    ) { workout in
+                        viewModel
+                            .quickStartItems
+                    ) { item in
                         quickButton(
-                            workout: workout
+                            item: item
                         )
                     }
                 }
-            } else if !viewModel.isLoadingWorkouts {
+            } else if !viewModel
+                .isLoadingWorkouts {
                 Text(
                     "No quick workouts available."
                 )
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(
+                    .secondary
+                )
             }
 
             Button {
@@ -201,9 +254,14 @@ private extension WorkoutLauncherView {
                 .frame(
                     maxWidth: .infinity
                 )
-                .padding(.vertical, 12)
+                .padding(
+                    .vertical,
+                    12
+                )
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(
+                .borderedProminent
+            )
             .buttonBorderShape(
                 .capsule
             )
@@ -220,10 +278,12 @@ private extension WorkoutLauncherView {
     }
 
     func recoveryButton(
-        _ stored: StoredWorkoutSession
+        _ stored:
+            StoredWorkoutSession
     ) -> some View {
         Button {
-            viewModel.openRecoverableWorkout()
+            viewModel
+                .openRecoverableWorkout()
         } label: {
             HStack {
                 Image(
@@ -235,19 +295,27 @@ private extension WorkoutLauncherView {
                     alignment: .leading,
                     spacing: 2
                 ) {
-                    Text("Resume Workout")
-                        .fontWeight(.semibold)
+                    Text(
+                        "Resume Workout"
+                    )
+                    .fontWeight(
+                        .semibold
+                    )
 
                     Text(
-                        stored.session.workout.name
+                        stored.session
+                            .workout.name
                         + " · "
                         + formatDuration(
                             stored.session
-                                .timing.activeDuration
+                                .timing
+                                .activeDuration
                         )
                     )
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(
+                        .secondary
+                    )
                 }
 
                 Spacer()
@@ -256,7 +324,10 @@ private extension WorkoutLauncherView {
                 maxWidth: .infinity,
                 alignment: .leading
             )
-            .padding(.vertical, 8)
+            .padding(
+                .vertical,
+                8
+            )
         }
         .buttonStyle(.bordered)
         .buttonBorderShape(
@@ -268,24 +339,32 @@ private extension WorkoutLauncherView {
 
     var orbButton: some View {
         Button {
-            viewModel.toggleLauncher()
+            viewModel
+                .toggleLauncher()
         } label: {
             ZStack {
                 Circle()
                     .fill(
-                        viewModel.isExpanded
-                            ? Color.secondary
-                                .opacity(0.18)
-                            : Color.accentColor
+                        viewModel
+                            .isExpanded
+                            ? Color
+                                .secondary
+                                .opacity(
+                                    0.18
+                                )
+                            : Color
+                                .accentColor
                     )
                     .frame(
                         width: 64,
                         height: 64
                     )
 
-                if viewModel.isExpanded {
+                if viewModel
+                    .isExpanded {
                     Image(
-                        systemName: "xmark"
+                        systemName:
+                            "xmark"
                     )
                     .font(
                         .system(
@@ -293,17 +372,22 @@ private extension WorkoutLauncherView {
                             weight: .bold
                         )
                     )
-                    .foregroundStyle(.primary)
+                    .foregroundStyle(
+                        .primary
+                    )
                 } else {
                     Text("W")
                         .font(
                             .system(
                                 size: 24,
                                 weight: .black,
-                                design: .rounded
+                                design:
+                                    .rounded
                             )
                         )
-                        .foregroundStyle(.white)
+                        .foregroundStyle(
+                            .white
+                        )
                 }
             }
         }
@@ -316,18 +400,19 @@ private extension WorkoutLauncherView {
     }
 
     func quickButton(
-        workout: WorkoutDefinition
+        item: WorkoutQuickStartItem
     ) -> some View {
         Button {
             viewModel.openWorkout(
-                workout
+                item.workout
             )
         } label: {
             VStack(spacing: 6) {
                 Image(
                     systemName:
                         quickWorkoutIcon(
-                            for: workout
+                            for:
+                                item.workout
                         )
                 )
                 .font(
@@ -337,19 +422,37 @@ private extension WorkoutLauncherView {
                     )
                 )
 
-                Text(workout.name)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
-                    .lineLimit(2)
-                    .multilineTextAlignment(
-                        .center
-                    )
+                Text(
+                    item.workout.name
+                )
+                .font(.subheadline)
+                .fontWeight(.semibold)
+                .lineLimit(2)
+                .multilineTextAlignment(
+                    .center
+                )
             }
             .frame(
                 maxWidth: .infinity,
                 minHeight: 62
             )
-            .padding(.horizontal, 6)
+            .padding(
+                .horizontal,
+                6
+            )
+            .overlay(
+                alignment: .topTrailing
+            ) {
+                if item.source
+                    == .favorite {
+                    Image(
+                        systemName:
+                            "star.fill"
+                    )
+                    .font(.caption2)
+                    .padding(6)
+                }
+            }
         }
         .buttonStyle(.bordered)
         .buttonBorderShape(
@@ -360,9 +463,11 @@ private extension WorkoutLauncherView {
     }
 
     func quickWorkoutIcon(
-        for workout: WorkoutDefinition
+        for workout:
+            WorkoutDefinition
     ) -> String {
-        workout.requiresLocationTracking
+        workout
+            .requiresLocationTracking
             ? "location.fill"
             : "figure.strengthtraining.traditional"
     }
@@ -370,39 +475,58 @@ private extension WorkoutLauncherView {
     @ViewBuilder
     func workoutFlow(
         for destination:
-            WorkoutLauncherViewModel.Destination
+            WorkoutLauncherViewModel
+                .Destination
     ) -> some View {
         switch destination {
-        case .workout(let workout):
+        case .workout(
+            let workout
+        ):
             WorkoutFeatureView(
-                initialWorkout: workout,
+                initialWorkout:
+                    workout,
                 sessionRepository:
                     sessionRepository,
+                preferenceStore:
+                    preferenceStore,
                 maximumHeartRate:
                     maximumHeartRate,
                 onCancelled: {
-                    viewModel.dismissWorkoutFlow()
+                    viewModel
+                        .dismissWorkoutFlow()
                 },
-                onFinished: { session in
-                    viewModel.dismissWorkoutFlow()
-                    onFinished(session)
+                onFinished: {
+                    session in
+                    viewModel
+                        .dismissWorkoutFlow()
+                    onFinished(
+                        session
+                    )
                 }
             )
 
         case .catalog:
             WorkoutFeatureView(
                 initialWorkout: nil,
-                initialCategory: .strength,
+                initialCategory:
+                    .strength,
                 sessionRepository:
                     sessionRepository,
+                preferenceStore:
+                    preferenceStore,
                 maximumHeartRate:
                     maximumHeartRate,
                 onCancelled: {
-                    viewModel.dismissWorkoutFlow()
+                    viewModel
+                        .dismissWorkoutFlow()
                 },
-                onFinished: { session in
-                    viewModel.dismissWorkoutFlow()
-                    onFinished(session)
+                onFinished: {
+                    session in
+                    viewModel
+                        .dismissWorkoutFlow()
+                    onFinished(
+                        session
+                    )
                 }
             )
 
@@ -411,19 +535,27 @@ private extension WorkoutLauncherView {
             let storedSession
         ):
             WorkoutFeatureView(
-                initialWorkout: workout,
+                initialWorkout:
+                    workout,
                 restoredSession:
                     storedSession,
                 sessionRepository:
                     sessionRepository,
+                preferenceStore:
+                    preferenceStore,
                 maximumHeartRate:
                     maximumHeartRate,
                 onCancelled: {
-                    viewModel.dismissWorkoutFlow()
+                    viewModel
+                        .dismissWorkoutFlow()
                 },
-                onFinished: { session in
-                    viewModel.dismissWorkoutFlow()
-                    onFinished(session)
+                onFinished: {
+                    session in
+                    viewModel
+                        .dismissWorkoutFlow()
+                    onFinished(
+                        session
+                    )
                 }
             )
         }
@@ -432,13 +564,16 @@ private extension WorkoutLauncherView {
     func formatDuration(
         _ duration: TimeInterval
     ) -> String {
-        let totalSeconds = max(
-            0,
-            Int(duration)
-        )
-        let hours = totalSeconds / 3_600
+        let totalSeconds =
+            max(
+                0,
+                Int(duration)
+            )
+        let hours =
+            totalSeconds / 3_600
         let minutes =
-            (totalSeconds % 3_600) / 60
+            (totalSeconds % 3_600)
+            / 60
 
         if hours > 0 {
             return "\(hours)h \(minutes)m"

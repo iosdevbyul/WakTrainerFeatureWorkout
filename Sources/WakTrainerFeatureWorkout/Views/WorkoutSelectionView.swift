@@ -1,28 +1,44 @@
-
 import SwiftUI
 import WakTrainerDomainWorkout
 
 struct WorkoutSelectionView: View {
 
-    @StateObject private var viewModel: WorkoutSelectionViewModel
+    @StateObject private var viewModel:
+        WorkoutSelectionViewModel
 
-    private let onWorkoutSelected: (WorkoutDefinition) -> Void
-    private let onCancel: (() -> Void)?
+    private let onWorkoutSelected:
+        (WorkoutDefinition) -> Void
+    private let onCancel:
+        (() -> Void)?
 
     init(
-        fetchWorkoutsUseCase: FetchWorkoutsUseCase,
-        initialCategory: WorkoutCategory = .strength,
-        onCancel: (() -> Void)? = nil,
-        onWorkoutSelected: @escaping (WorkoutDefinition) -> Void
+        fetchWorkoutsUseCase:
+            FetchWorkoutsUseCase,
+        initialCategory:
+            WorkoutCategory = .strength,
+        preferenceStore:
+            any WorkoutLauncherPreferenceStore =
+                UserDefaultsWorkoutLauncherPreferenceStore(),
+        onCancel:
+            (() -> Void)? = nil,
+        onWorkoutSelected:
+            @escaping (WorkoutDefinition) -> Void
     ) {
-        self.onWorkoutSelected = onWorkoutSelected
-        self.onCancel = onCancel
+        self.onWorkoutSelected =
+            onWorkoutSelected
+        self.onCancel =
+            onCancel
 
         _viewModel = StateObject(
-            wrappedValue: WorkoutSelectionViewModel(
-                fetchWorkoutsUseCase: fetchWorkoutsUseCase,
-                initialCategory: initialCategory
-            )
+            wrappedValue:
+                WorkoutSelectionViewModel(
+                    fetchWorkoutsUseCase:
+                        fetchWorkoutsUseCase,
+                    initialCategory:
+                        initialCategory,
+                    preferenceStore:
+                        preferenceStore
+                )
         )
     }
 
@@ -33,31 +49,40 @@ struct WorkoutSelectionView: View {
             content
         }
         .padding(.horizontal, 20)
-        .navigationTitle("운동 선택")
+        .navigationTitle(
+            "Choose Workout"
+        )
         .toolbar {
             if let onCancel {
                 ToolbarItem(
-                    placement: .topBarLeading
+                    placement:
+                        .topBarLeading
                 ) {
-                    Button("닫기") {
+                    Button("Close") {
                         onCancel()
                     }
                 }
             }
         }
         .task {
-            await viewModel.loadWorkouts()
+            await viewModel
+                .loadWorkouts()
         }
     }
 
-    // MARK: - Category
-
-    private var categoryPicker: some View {
+    private var categoryPicker:
+        some View {
         Picker(
-            "운동 종류",
-            selection: $viewModel.selectedCategory
+            "Workout Type",
+            selection:
+                $viewModel
+                    .selectedCategory
         ) {
-            ForEach(WorkoutCategory.allCases, id: \.self) { category in
+            ForEach(
+                WorkoutCategory
+                    .allCases,
+                id: \.self
+            ) { category in
                 Text(category.title)
                     .tag(category)
             }
@@ -65,30 +90,41 @@ struct WorkoutSelectionView: View {
         .pickerStyle(.segmented)
     }
 
-    // MARK: - Content
-
     @ViewBuilder
-    private var content: some View {
+    private var content:
+        some View {
         if viewModel.isLoading {
             loadingView
-        } else if let errorMessage = viewModel.errorMessage {
-            errorView(message: errorMessage)
-        } else if viewModel.filteredWorkouts.isEmpty {
+        } else if let errorMessage =
+                    viewModel
+                        .errorMessage {
+            errorView(
+                message:
+                    errorMessage
+            )
+        } else if viewModel
+            .filteredWorkouts
+            .isEmpty {
             emptyView
         } else {
             workoutList
         }
     }
 
-    private var loadingView: some View {
+    private var loadingView:
+        some View {
         VStack {
             Spacer()
 
-            ProgressView("운동 목록 불러오는 중")
+            ProgressView(
+                "Loading workouts..."
+            )
 
             Spacer()
         }
-        .frame(maxWidth: .infinity)
+        .frame(
+            maxWidth: .infinity
+        )
     }
 
     private func errorView(
@@ -97,99 +133,174 @@ struct WorkoutSelectionView: View {
         VStack(spacing: 16) {
             Spacer()
 
-            Text("운동 목록을 불러오지 못했습니다.")
-                .font(.headline)
+            Text(
+                "Unable to Load Workouts"
+            )
+            .font(.headline)
 
             Text(message)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
+                .foregroundStyle(
+                    .secondary
+                )
+                .multilineTextAlignment(
+                    .center
+                )
 
-            Button("다시 시도") {
+            Button("Try Again") {
                 Task {
-                    await viewModel.loadWorkouts()
+                    await viewModel
+                        .loadWorkouts()
                 }
             }
 
             Spacer()
         }
-        .frame(maxWidth: .infinity)
+        .frame(
+            maxWidth: .infinity
+        )
     }
 
-    private var emptyView: some View {
+    private var emptyView:
+        some View {
         VStack {
             Spacer()
 
-            Text("등록된 운동이 없습니다.")
-                .foregroundStyle(.secondary)
+            Text(
+                "No workouts available."
+            )
+            .foregroundStyle(
+                .secondary
+            )
 
             Spacer()
         }
-        .frame(maxWidth: .infinity)
+        .frame(
+            maxWidth: .infinity
+        )
     }
 
-    private var workoutList: some View {
-        List(viewModel.filteredWorkouts) { workout in
-            Button {
-                onWorkoutSelected(workout)
-            } label: {
-                WorkoutSelectionRow(
-                    workout: workout
+    private var workoutList:
+        some View {
+        List(
+            viewModel
+                .filteredWorkouts
+        ) { workout in
+            HStack(spacing: 12) {
+                Button {
+                    onWorkoutSelected(
+                        workout
+                    )
+                } label: {
+                    WorkoutSelectionRow(
+                        workout:
+                            workout
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    viewModel
+                        .toggleFavorite(
+                            workout
+                        )
+                } label: {
+                    Image(
+                        systemName:
+                            viewModel
+                                .isFavorite(
+                                    workout
+                                )
+                            ? "star.fill"
+                            : "star"
+                    )
+                    .font(.headline)
+                    .frame(
+                        width: 36,
+                        height: 36
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(
+                    viewModel
+                        .isFavorite(
+                            workout
+                        )
+                    ? "Remove from Favorites"
+                    : "Add to Favorites"
                 )
             }
-            .buttonStyle(.plain)
         }
         .listStyle(.plain)
     }
 }
 
-// MARK: - WorkoutSelectionRow
+private struct WorkoutSelectionRow:
+    View {
 
-private struct WorkoutSelectionRow: View {
-
-    let workout: WorkoutDefinition
+    let workout:
+        WorkoutDefinition
 
     var body: some View {
         HStack(spacing: 12) {
-            VStack(alignment: .leading, spacing: 6) {
+            VStack(
+                alignment: .leading,
+                spacing: 6
+            ) {
                 Text(workout.name)
                     .font(.headline)
 
-                Text(workout.trackingDescription)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(
+                    workout
+                        .trackingDescription
+                )
+                .font(.caption)
+                .foregroundStyle(
+                    .secondary
+                )
             }
 
             Spacer()
 
-            Image(systemName: workout.trackingIcon)
-                .foregroundStyle(.secondary)
+            Image(
+                systemName:
+                    workout
+                        .trackingIcon
+            )
+            .foregroundStyle(
+                .secondary
+            )
         }
-        .padding(.vertical, 6)
+        .contentShape(
+            Rectangle()
+        )
+        .padding(
+            .vertical,
+            6
+        )
     }
 }
-
-// MARK: - Presentation
 
 private extension WorkoutCategory {
 
     var title: String {
         switch self {
         case .strength:
-            "근력"
+            "Strength"
 
         case .cardio:
-            "유산소"
+            "Cardio"
         }
     }
 }
 
 private extension WorkoutDefinition {
 
-    var trackingDescription: String {
+    var trackingDescription:
+        String {
         requiresLocationTracking
-            ? "이동 경로 기록"
-            : "위치 기록 없음"
+            ? "Route tracking"
+            : "No route tracking"
     }
 
     var trackingIcon: String {
