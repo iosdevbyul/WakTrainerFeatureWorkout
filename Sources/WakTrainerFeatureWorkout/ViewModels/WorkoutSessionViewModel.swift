@@ -171,7 +171,6 @@ final class WorkoutSessionViewModel: ObservableObject {
         healthTask?.cancel()
         checkpointTask?.cancel()
         snapshotTimeoutTask?.cancel()
-        locationManager?.stopTracking()
     }
 
     // MARK: - Setup
