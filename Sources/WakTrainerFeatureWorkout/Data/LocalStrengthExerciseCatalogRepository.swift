@@ -52,6 +52,26 @@ struct LocalStrengthExerciseCatalogRepository:
                 ]
             ),
             StrengthExerciseDefinition(
+                id: "biceps_curl",
+                name: "Biceps Curl",
+                supportedEquipment: [.dumbbell, .barbell, .cable]
+            ),
+            StrengthExerciseDefinition(
+                id: "triceps_extension",
+                name: "Triceps Extension",
+                supportedEquipment: [.dumbbell, .cable]
+            ),
+            StrengthExerciseDefinition(
+                id: "crunch",
+                name: "Crunch",
+                supportedEquipment: [.bodyweight]
+            ),
+            StrengthExerciseDefinition(
+                id: "plank",
+                name: "Plank",
+                supportedEquipment: [.bodyweight]
+            ),
+            StrengthExerciseDefinition(
                 id: "barbell_row",
                 name: "Row",
                 supportedEquipment: [
