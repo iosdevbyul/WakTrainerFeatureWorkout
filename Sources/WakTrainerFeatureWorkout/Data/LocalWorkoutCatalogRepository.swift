@@ -8,22 +8,12 @@
 import WakTrainerCoreModels
 import WakTrainerDomainWorkout
 
-struct LocalWorkoutCatalogRepository: WorkoutCatalogRepository {
+struct LocalWorkoutCatalogRepository:
+    WorkoutCatalogRepository {
 
-    func fetchWorkouts() async throws -> [WorkoutDefinition] {
+    func fetchWorkouts() async throws
+        -> [WorkoutDefinition] {
         [
-            WorkoutDefinition(
-                id: "squat",
-                name: "Squat",
-                category: .strength,
-                type: .staticWorkout
-            ),
-            WorkoutDefinition(
-                id: "bench_press",
-                name: "Bench Press",
-                category: .strength,
-                type: .staticWorkout
-            ),
             WorkoutDefinition(
                 id: "running",
                 name: "Running",
@@ -37,16 +27,28 @@ struct LocalWorkoutCatalogRepository: WorkoutCatalogRepository {
                 type: .dynamicWorkout
             ),
             WorkoutDefinition(
+                id: "outdoor_cycling",
+                name: "Outdoor Cycling",
+                category: .cardio,
+                type: .dynamicWorkout
+            ),
+            WorkoutDefinition(
+                id: "squat",
+                name: "Squat",
+                category: .strength,
+                type: .staticWorkout
+            ),
+            WorkoutDefinition(
                 id: "indoor_cycling",
                 name: "Indoor Cycling",
                 category: .cardio,
                 type: .staticWorkout
             ),
             WorkoutDefinition(
-                id: "outdoor_cycling",
-                name: "Outdoor Cycling",
-                category: .cardio,
-                type: .dynamicWorkout
+                id: "bench_press",
+                name: "Bench Press",
+                category: .strength,
+                type: .staticWorkout
             )
         ]
     }

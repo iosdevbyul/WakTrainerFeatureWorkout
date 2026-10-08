@@ -6,7 +6,8 @@ import WakTrainerServiceWorkoutStorage
 @MainActor
 public struct WorkoutLauncherView: View {
 
-    @StateObject private var viewModel: WorkoutLauncherViewModel
+    @StateObject private var viewModel:
+        WorkoutLauncherViewModel
 
     private let maximumHeartRate: Double?
     private let sessionRepository:
@@ -30,10 +31,12 @@ public struct WorkoutLauncherView: View {
         self.onFinished = onFinished
 
         _viewModel = StateObject(
-            wrappedValue: WorkoutLauncherViewModel(
-                fetchWorkoutsUseCase: useCase,
-                sessionRepository: sessionRepository
-            )
+            wrappedValue:
+                WorkoutLauncherViewModel(
+                    fetchWorkoutsUseCase: useCase,
+                    sessionRepository:
+                        sessionRepository
+                )
         )
     }
 
@@ -56,14 +59,8 @@ public struct WorkoutLauncherView: View {
             ),
             value: viewModel.isExpanded
         )
-        .animation(
-            .spring(
-                response: 0.3,
-                dampingFraction: 0.8
-            ),
-            value: viewModel.isCyclingExpanded
-        )
         .task {
+            await viewModel.loadWorkouts()
             await viewModel.loadRecoverableWorkout()
         }
         .fullScreenCover(
@@ -74,17 +71,17 @@ public struct WorkoutLauncherView: View {
             )
         }
         .confirmationDialog(
-            "이전 운동 기록이 있습니다",
+            "Resume Workout",
             isPresented:
                 $viewModel.isRecoveryPromptPresented,
             titleVisibility: .visible
         ) {
-            Button("이전 운동 이어하기") {
+            Button("Resume") {
                 viewModel.openRecoverableWorkout()
             }
 
             Button(
-                "저장된 운동 삭제",
+                "Delete Saved Workout",
                 role: .destructive
             ) {
                 Task {
@@ -94,7 +91,7 @@ public struct WorkoutLauncherView: View {
             }
 
             Button(
-                "나중에",
+                "Later",
                 role: .cancel
             ) {
                 viewModel.dismissRecoveryPrompt()
@@ -103,8 +100,9 @@ public struct WorkoutLauncherView: View {
             if let stored =
                     viewModel.recoverableSession {
                 Text(
-                    "\(stored.session.workout.name) · " +
-                    formatDuration(
+                    stored.session.workout.name
+                    + " · "
+                    + formatDuration(
                         stored.session
                             .timing.activeDuration
                     )
@@ -112,7 +110,7 @@ public struct WorkoutLauncherView: View {
             }
         }
         .alert(
-            "운동을 시작할 수 없습니다",
+            "Unable to Start Workout",
             isPresented: Binding(
                 get: {
                     viewModel.errorMessage != nil
@@ -124,7 +122,7 @@ public struct WorkoutLauncherView: View {
                 }
             )
         ) {
-            Button("확인", role: .cancel) {
+            Button("OK", role: .cancel) {
                 viewModel.errorMessage = nil
             }
         } message: {
@@ -138,120 +136,66 @@ public struct WorkoutLauncherView: View {
 private extension WorkoutLauncherView {
 
     var launcherMenu: some View {
-        VStack(spacing: 10) {
+        VStack(
+            alignment: .leading,
+            spacing: 12
+        ) {
             if let stored =
                     viewModel.recoverableSession {
-                Button {
-                    viewModel.openRecoverableWorkout()
-                } label: {
-                    HStack {
-                        Image(
-                            systemName:
-                                "arrow.clockwise.circle.fill"
-                        )
-
-                        VStack(
-                            alignment: .leading,
-                            spacing: 2
-                        ) {
-                            Text("이전 운동 이어하기")
-                                .fontWeight(.semibold)
-
-                            Text(
-                                stored.session.workout.name +
-                                " · " +
-                                formatDuration(
-                                    stored.session
-                                        .timing.activeDuration
-                                )
-                            )
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        }
-
-                        Spacer()
-                    }
-                    .frame(
-                        maxWidth: .infinity,
-                        alignment: .leading
-                    )
-                    .padding(.vertical, 8)
-                }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(
-                    .roundedRectangle(
-                        radius: 16
-                    )
+                recoveryButton(
+                    stored
                 )
             }
 
-            HStack(spacing: 10) {
-                quickButton(
-                    title: "러닝",
-                    systemImage: "figure.run"
-                ) {
-                    Task {
-                        await viewModel.openWorkout(
-                            .running
-                        )
-                    }
-                }
+            HStack {
+                Text("Quick Start")
+                    .font(.headline)
 
-                quickButton(
-                    title: "걷기",
-                    systemImage: "figure.walk"
-                ) {
-                    Task {
-                        await viewModel.openWorkout(
-                            .walking
-                        )
-                    }
-                }
+                Spacer()
 
-                quickButton(
-                    title: "자전거",
-                    systemImage: "bicycle"
-                ) {
-                    viewModel.toggleCyclingOptions()
+                if viewModel.isLoadingWorkouts {
+                    ProgressView()
+                        .controlSize(.small)
                 }
             }
 
-            if viewModel.isCyclingExpanded {
-                HStack(spacing: 10) {
-                    quickButton(
-                        title: "실내",
-                        systemImage: "bicycle.circle"
-                    ) {
-                        Task {
-                            await viewModel.openWorkout(
-                                .indoorCycling
-                            )
-                        }
-                    }
-
-                    quickButton(
-                        title: "야외",
-                        systemImage: "map"
-                    ) {
-                        Task {
-                            await viewModel.openWorkout(
-                                .outdoorCycling
-                            )
-                        }
+            if !viewModel.quickWorkouts.isEmpty {
+                LazyVGrid(
+                    columns: [
+                        GridItem(
+                            .flexible(),
+                            spacing: 10
+                        ),
+                        GridItem(
+                            .flexible(),
+                            spacing: 10
+                        )
+                    ],
+                    spacing: 10
+                ) {
+                    ForEach(
+                        viewModel.quickWorkouts
+                    ) { workout in
+                        quickButton(
+                            workout: workout
+                        )
                     }
                 }
-                .transition(
-                    .move(edge: .bottom)
-                    .combined(with: .opacity)
+            } else if !viewModel.isLoadingWorkouts {
+                Text(
+                    "No quick workouts available."
                 )
+                .font(.footnote)
+                .foregroundStyle(.secondary)
             }
 
             Button {
-                viewModel.openStrengthSelection()
+                viewModel.openCatalog()
             } label: {
                 Label(
-                    "근력운동",
-                    systemImage: "dumbbell.fill"
+                    "Browse All Workouts",
+                    systemImage:
+                        "square.grid.2x2"
                 )
                 .font(.headline)
                 .frame(
@@ -275,6 +219,53 @@ private extension WorkoutLauncherView {
         )
     }
 
+    func recoveryButton(
+        _ stored: StoredWorkoutSession
+    ) -> some View {
+        Button {
+            viewModel.openRecoverableWorkout()
+        } label: {
+            HStack {
+                Image(
+                    systemName:
+                        "arrow.clockwise.circle.fill"
+                )
+
+                VStack(
+                    alignment: .leading,
+                    spacing: 2
+                ) {
+                    Text("Resume Workout")
+                        .fontWeight(.semibold)
+
+                    Text(
+                        stored.session.workout.name
+                        + " · "
+                        + formatDuration(
+                            stored.session
+                                .timing.activeDuration
+                        )
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+            }
+            .frame(
+                maxWidth: .infinity,
+                alignment: .leading
+            )
+            .padding(.vertical, 8)
+        }
+        .buttonStyle(.bordered)
+        .buttonBorderShape(
+            .roundedRectangle(
+                radius: 16
+            )
+        )
+    }
+
     var orbButton: some View {
         Button {
             viewModel.toggleLauncher()
@@ -283,7 +274,8 @@ private extension WorkoutLauncherView {
                 Circle()
                     .fill(
                         viewModel.isExpanded
-                            ? Color.secondary.opacity(0.18)
+                            ? Color.secondary
+                                .opacity(0.18)
                             : Color.accentColor
                     )
                     .frame(
@@ -318,22 +310,25 @@ private extension WorkoutLauncherView {
         .buttonStyle(.plain)
         .accessibilityLabel(
             viewModel.isExpanded
-                ? "운동 메뉴 닫기"
-                : "운동 시작"
+                ? "Close workout menu"
+                : "Start workout"
         )
     }
 
     func quickButton(
-        title: String,
-        systemImage: String,
-        action: @escaping () -> Void
+        workout: WorkoutDefinition
     ) -> some View {
-        Button(
-            action: action
-        ) {
+        Button {
+            viewModel.openWorkout(
+                workout
+            )
+        } label: {
             VStack(spacing: 6) {
                 Image(
-                    systemName: systemImage
+                    systemName:
+                        quickWorkoutIcon(
+                            for: workout
+                        )
                 )
                 .font(
                     .system(
@@ -342,12 +337,16 @@ private extension WorkoutLauncherView {
                     )
                 )
 
-                Text(title)
+                Text(workout.name)
                     .font(.subheadline)
                     .fontWeight(.semibold)
+                    .lineLimit(2)
+                    .multilineTextAlignment(
+                        .center
+                    )
             }
             .frame(
-                minWidth: 78,
+                maxWidth: .infinity,
                 minHeight: 62
             )
             .padding(.horizontal, 6)
@@ -360,16 +359,27 @@ private extension WorkoutLauncherView {
         )
     }
 
+    func quickWorkoutIcon(
+        for workout: WorkoutDefinition
+    ) -> String {
+        workout.requiresLocationTracking
+            ? "location.fill"
+            : "figure.strengthtraining.traditional"
+    }
+
     @ViewBuilder
     func workoutFlow(
-        for destination: WorkoutLauncherViewModel.Destination
+        for destination:
+            WorkoutLauncherViewModel.Destination
     ) -> some View {
         switch destination {
         case .workout(let workout):
             WorkoutFeatureView(
                 initialWorkout: workout,
-                sessionRepository: sessionRepository,
-                maximumHeartRate: maximumHeartRate,
+                sessionRepository:
+                    sessionRepository,
+                maximumHeartRate:
+                    maximumHeartRate,
                 onCancelled: {
                     viewModel.dismissWorkoutFlow()
                 },
@@ -379,12 +389,14 @@ private extension WorkoutLauncherView {
                 }
             )
 
-        case .category(let category):
+        case .catalog:
             WorkoutFeatureView(
                 initialWorkout: nil,
-                initialCategory: category,
-                sessionRepository: sessionRepository,
-                maximumHeartRate: maximumHeartRate,
+                initialCategory: .strength,
+                sessionRepository:
+                    sessionRepository,
+                maximumHeartRate:
+                    maximumHeartRate,
                 onCancelled: {
                     viewModel.dismissWorkoutFlow()
                 },
@@ -400,9 +412,12 @@ private extension WorkoutLauncherView {
         ):
             WorkoutFeatureView(
                 initialWorkout: workout,
-                restoredSession: storedSession,
-                sessionRepository: sessionRepository,
-                maximumHeartRate: maximumHeartRate,
+                restoredSession:
+                    storedSession,
+                sessionRepository:
+                    sessionRepository,
+                maximumHeartRate:
+                    maximumHeartRate,
                 onCancelled: {
                     viewModel.dismissWorkoutFlow()
                 },
@@ -426,9 +441,9 @@ private extension WorkoutLauncherView {
             (totalSeconds % 3_600) / 60
 
         if hours > 0 {
-            return "\(hours)시간 \(minutes)분"
+            return "\(hours)h \(minutes)m"
         }
 
-        return "\(minutes)분"
+        return "\(minutes)m"
     }
 }
