@@ -14,6 +14,7 @@ struct WorkoutSessionView: View {
         false
     @State private var didPresentInitialExercisePicker = false
 
+    private let weightUnit: WorkoutWeightUnit
     private let workout:
         WorkoutDefinition
     private let fetchStrengthExercisesUseCase:
@@ -28,12 +29,14 @@ struct WorkoutSessionView: View {
             StoredWorkoutSession? = nil,
         sessionRepository:
             (any WorkoutSessionRepository)? = nil,
+        weightUnit: WorkoutWeightUnit = .kg,
         onCancel:
             @escaping () -> Void,
         onFinished:
             @escaping (WorkoutSession) -> Void
     ) {
         self.workout = workout
+        self.weightUnit = weightUnit
         self.onCancel = onCancel
         self.onFinished = onFinished
 
@@ -214,7 +217,8 @@ struct WorkoutSessionView: View {
                         != nil {
                         StrengthSetRecorderView(
                             viewModel:
-                                viewModel
+                                viewModel,
+                            weightUnit: weightUnit
                         )
                     }
 
