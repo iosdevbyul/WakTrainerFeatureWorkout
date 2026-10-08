@@ -6,6 +6,7 @@ struct StrengthSetRecorderView: View {
 
     @ObservedObject var viewModel:
         WorkoutSessionViewModel
+    let weightUnit: WorkoutWeightUnit
 
     @State private var weightText = ""
     @State private var repetitionsText = ""
@@ -38,6 +39,10 @@ struct StrengthSetRecorderView: View {
                 cornerRadius: 16
             )
         )
+        .onChange(of: viewModel.strengthSets.count) {
+            fillPreviousSet()
+        }
+        .onAppear { fillPreviousSet() }
         .onChange(
             of:
                 viewModel
@@ -153,7 +158,7 @@ struct StrengthSetRecorderView: View {
                         title: "Weight",
                         text:
                             $weightText,
-                        unit: "kg",
+                        unit: weightUnit.rawValue,
                         keyboardType:
                             .decimalPad
                     )
@@ -334,7 +339,7 @@ struct StrengthSetRecorderView: View {
                 .recordStrengthSet(
                     weightKilograms:
                         requiresWeightInput
-                        ? parsedWeight
+                        ? parsedWeight.map { weightUnit.toKilograms($0) }
                         : nil,
                     repetitions:
                         repetitions,
@@ -346,9 +351,23 @@ struct StrengthSetRecorderView: View {
             return
         }
 
-        weightText = ""
-        repetitionsText = ""
-        isWarmup = false
+        fillPreviousSet()
+    }
+
+    private func fillPreviousSet() {
+        guard let previous = viewModel.strengthSets.last else {
+            weightText = ""
+            repetitionsText = ""
+            isWarmup = false
+            return
+        }
+        if let kilograms = previous.weightKilograms {
+            weightText = String(format: "%.1f", weightUnit.fromKilograms(kilograms))
+        } else {
+            weightText = ""
+        }
+        repetitionsText = previous.repetitions.map(String.init) ?? ""
+        isWarmup = previous.isWarmup
     }
 
     private var formattedRestTime:
@@ -386,8 +405,9 @@ struct StrengthSetRecorderView: View {
 
         return String(
             format:
-                "%.1fkg × %d",
-            weight,
+                "%.1f%@ × %d",
+            weightUnit.fromKilograms(weight),
+            weightUnit.rawValue,
             repetitions
         )
     }
