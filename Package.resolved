@@ -6,7 +6,7 @@
       "location" : "https://github.com/iosdevbyul/WakTrainerCoreModels",
       "state" : {
         "branch" : "main",
-        "revision" : "1f6cadca746dbbf6d46d5dc4457c3fd925bd1506"
+        "revision" : "a19ca9d53b7b395b3c41efbbcc9883c53a672832"
       }
     },
     {
@@ -15,7 +15,7 @@
       "location" : "https://github.com/iosdevbyul/WakTrainerDomainWorkout",
       "state" : {
         "branch" : "main",
-        "revision" : "2a127041aca340d79df280338a21bce57c71ddc7"
+        "revision" : "c8d605a70e8abff876ebd7acf4b7593fc095dc2f"
       }
     },
     {
