@@ -65,9 +65,9 @@ struct WorkoutSessionView: View {
                     workout: workout,
                     restoredSession:
                         restoredSession,
+                    strengthLocationPolicy: strengthLocationPolicy,
                     sessionRepository:
-                        resolvedRepository,
-                    strengthLocationPolicy: strengthLocationPolicy
+                        resolvedRepository
                 )
         )
     }
