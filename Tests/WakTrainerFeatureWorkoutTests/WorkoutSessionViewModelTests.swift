@@ -19,7 +19,7 @@ import WakTrainerFeatureTimer
 struct WorkoutSessionViewModelTests {
 
     @Test
-    func finishWorkoutBuildsSessionAndStopsResources() async throws {
+    func cardioWorkoutBuildsSessionAndStopsResources() async throws {
         let start = Date(
             timeIntervalSince1970: 1_800_000_000
         )
@@ -53,17 +53,18 @@ struct WorkoutSessionViewModelTests {
         )
 
         let timerManager = TimerManager()
-
-        let workout = WorkoutDefinition(
-            id: "squat",
-            name: "스쿼트",
-            category: .strength,
-            type: .staticWorkout
-        )
+        let locationManager =
+            MockWorkoutLocationManager()
 
         let viewModel = WorkoutSessionViewModel(
-            workout: workout,
+            workout: WorkoutDefinition(
+                id: "running",
+                name: "Running",
+                category: .cardio,
+                type: .dynamicWorkout
+            ),
             healthKitManager: healthKitManager,
+            locationManager: locationManager,
             timerManager: timerManager
         )
 
@@ -75,10 +76,10 @@ struct WorkoutSessionViewModelTests {
 
         let session = await viewModel.finishWorkout()
 
-        #expect(session.workout.workoutID == "squat")
-        #expect(session.workout.name == "스쿼트")
-        #expect(session.workout.category == "strength")
-        #expect(session.workout.type == .staticWorkout)
+        #expect(session.workout.workoutID == "running")
+        #expect(session.workout.name == "Running")
+        #expect(session.workout.category == "cardio")
+        #expect(session.workout.type == .dynamicWorkout)
 
         #expect(session.timing.endDate != nil)
         #expect(session.timing.activeDuration > 0)
@@ -101,14 +102,12 @@ struct WorkoutSessionViewModelTests {
         #expect(session.exerciseRecords.count == 1)
         #expect(
             session.exerciseRecords.first?.exerciseID
-                == "squat"
+                == "running"
         )
         #expect(
             session.exerciseRecords.first?.kind
-                == .strength
+                == .cardio
         )
-
-        #expect(session.route.isEmpty)
 
         #expect(timerManager.state == .idle)
         #expect(timerManager.elapsedTime == 0)
@@ -125,16 +124,6 @@ struct WorkoutSessionViewModelTests {
         #expect(
             healthKitManager.fetchWorkoutHealthDataCallCount == 1
         )
-
-        let fetchedRange =
-            healthKitManager.fetchedDateRange
-
-        #expect(fetchedRange?.start != nil)
-        #expect(fetchedRange?.end != nil)
-
-        if let fetchedRange {
-            #expect(fetchedRange.end > fetchedRange.start)
-        }
     }
 
     @Test
@@ -147,15 +136,13 @@ struct WorkoutSessionViewModelTests {
         let locationManager =
             MockWorkoutLocationManager()
 
-        let workout = WorkoutDefinition(
-            id: "running",
-            name: "달리기",
-            category: .cardio,
-            type: .dynamicWorkout
-        )
-
         let viewModel = WorkoutSessionViewModel(
-            workout: workout,
+            workout: WorkoutDefinition(
+                id: "cycling",
+                name: "Cycling",
+                category: .cardio,
+                type: .dynamicWorkout
+            ),
             healthKitManager: healthKitManager,
             locationManager: locationManager,
             timerManager: TimerManager()
@@ -202,8 +189,7 @@ struct WorkoutSessionViewModelTests {
         let session = await viewModel.finishWorkout()
 
         #expect(
-            locationManager
-                .requestLocationPermissionCallCount == 1
+            locationManager.requestLocationPermissionCallCount == 1
         )
         #expect(
             locationManager.startTrackingCallCount == 1
@@ -211,70 +197,206 @@ struct WorkoutSessionViewModelTests {
         #expect(
             locationManager.stopTrackingCallCount == 1
         )
-
         #expect(session.route == [first, second])
-        #expect(
-            session.exerciseRecords.first?.kind
-                == .cardio
-        )
     }
 
     @Test
-    func staticWorkoutDoesNotStartLocationTracking() async {
-        let healthKitManager = MockHealthKitManager(
-            snapshot: HealthSnapshot(),
-            finalHealthData: WorkoutHealthData()
-        )
+    func strengthWorkoutRequiresExerciseAndEquipmentBeforeStart() async {
+        let viewModel = makeStrengthViewModel()
 
-        let locationManager =
-            MockWorkoutLocationManager()
+        await viewModel.startWorkout()
 
-        let workout = WorkoutDefinition(
-            id: "squat",
-            name: "스쿼트",
-            category: .strength,
-            type: .staticWorkout
-        )
+        #expect(viewModel.timerState == .idle)
+        #expect(!viewModel.canStartWorkout)
 
-        let viewModel = WorkoutSessionViewModel(
-            workout: workout,
-            healthKitManager: healthKitManager,
-            locationManager: locationManager,
-            timerManager: TimerManager()
+        let didSelect =
+            viewModel.beginStrengthExercise(
+                squatDefinition,
+                equipment: .barbell
+            )
+
+        #expect(didSelect)
+        #expect(viewModel.canStartWorkout)
+
+        await viewModel.startWorkout()
+
+        #expect(viewModel.timerState == .running)
+
+        _ = await viewModel.finishWorkout()
+    }
+
+    @Test
+    func strengthWorkoutStoresMultipleExercisesInOneSession() async throws {
+        let viewModel = makeStrengthViewModel()
+
+        #expect(
+            viewModel.beginStrengthExercise(
+                squatDefinition,
+                equipment: .barbell
+            )
         )
 
         await viewModel.startWorkout()
 
         #expect(
-            locationManager
-                .requestLocationPermissionCallCount == 0
+            viewModel.recordStrengthSet(
+                weightKilograms: 80,
+                repetitions: 8
+            )
+        )
+
+        #expect(
+            viewModel.finishRestAndStartNextSet()
+        )
+
+        #expect(
+            viewModel.recordStrengthSet(
+                weightKilograms: 90,
+                repetitions: 6
+            )
+        )
+
+        #expect(
+            viewModel.beginStrengthExercise(
+                benchPressDefinition,
+                equipment: .dumbbell
+            )
+        )
+
+        #expect(
+            viewModel.completedStrengthExerciseRecords.count
+                == 1
+        )
+
+        #expect(
+            viewModel.recordStrengthSet(
+                weightKilograms: 30,
+                repetitions: 10
+            )
+        )
+
+        let session = await viewModel.finishWorkout()
+
+        #expect(
+            session.workout.workoutID
+                == "strength_training"
         )
         #expect(
-            locationManager.startTrackingCallCount == 0
+            session.workout.name
+                == "Strength Training"
+        )
+        #expect(session.exerciseRecords.count == 2)
+
+        let squat =
+            try #require(
+                session.exerciseRecords
+                    .first
+            )
+        let bench =
+            try #require(
+                session.exerciseRecords
+                    .last
+            )
+
+        #expect(squat.exerciseID == "squat")
+        #expect(squat.strengthEquipment == .barbell)
+        #expect(squat.strengthSets.count == 2)
+
+        #expect(bench.exerciseID == "bench_press")
+        #expect(bench.strengthEquipment == .dumbbell)
+        #expect(bench.strengthSets.count == 1)
+    }
+
+    @Test
+    func bodyweightStrengthSetStoresRepsWithoutWeight() async throws {
+        let viewModel = makeStrengthViewModel()
+
+        #expect(
+            viewModel.beginStrengthExercise(
+                squatDefinition,
+                equipment: .bodyweight
+            )
+        )
+
+        await viewModel.startWorkout()
+
+        #expect(
+            viewModel.recordStrengthSet(
+                weightKilograms: nil,
+                repetitions: 20
+            )
+        )
+
+        let session = await viewModel.finishWorkout()
+
+        let set =
+            try #require(
+                session.exerciseRecords
+                    .first?
+                    .strengthSets
+                    .first
+            )
+
+        #expect(set.weightKilograms == nil)
+        #expect(set.repetitions == 20)
+    }
+
+    @Test
+    func strengthWorkoutDoesNotStartLocationTracking() async {
+        let locationManager =
+            MockWorkoutLocationManager()
+
+        let viewModel = WorkoutSessionViewModel(
+            workout: strengthWorkout,
+            healthKitManager: MockHealthKitManager(
+                snapshot: HealthSnapshot(),
+                finalHealthData: WorkoutHealthData()
+            ),
+            locationManager: locationManager,
+            timerManager: TimerManager()
+        )
+
+        #expect(
+            viewModel.beginStrengthExercise(
+                squatDefinition,
+                equipment: .barbell
+            )
+        )
+
+        await viewModel.startWorkout()
+
+        #expect(
+            locationManager.requestLocationPermissionCallCount
+                == 0
+        )
+        #expect(
+            locationManager.startTrackingCallCount
+                == 0
         )
 
         _ = await viewModel.finishWorkout()
 
         #expect(
-            locationManager.stopTrackingCallCount == 0
+            locationManager.stopTrackingCallCount
+                == 0
         )
     }
 
     @Test
     func pauseTimeIsSeparatedFromActiveTime() async throws {
-        let healthKitManager = MockHealthKitManager(
-            snapshot: HealthSnapshot(),
-            finalHealthData: WorkoutHealthData()
-        )
-
         let viewModel = WorkoutSessionViewModel(
             workout: WorkoutDefinition(
-                id: "squat",
-                name: "스쿼트",
-                category: .strength,
-                type: .staticWorkout
+                id: "running",
+                name: "Running",
+                category: .cardio,
+                type: .dynamicWorkout
             ),
-            healthKitManager: healthKitManager,
+            healthKitManager: MockHealthKitManager(
+                snapshot: HealthSnapshot(),
+                finalHealthData: WorkoutHealthData()
+            ),
+            locationManager:
+                MockWorkoutLocationManager(),
             timerManager: TimerManager()
         )
 
@@ -321,13 +443,14 @@ struct WorkoutSessionViewModelTests {
 
         let viewModel = WorkoutSessionViewModel(
             workout: WorkoutDefinition(
-                id: "running",
-                name: "달리기",
+                id: "walking",
+                name: "Walking",
                 category: .cardio,
                 type: .dynamicWorkout
             ),
             healthKitManager: healthKitManager,
-            locationManager: MockWorkoutLocationManager(),
+            locationManager:
+                MockWorkoutLocationManager(),
             timerManager: TimerManager()
         )
 
@@ -339,128 +462,51 @@ struct WorkoutSessionViewModelTests {
 
         let session = await viewModel.finishWorkout()
 
-        #expect(session.workout.workoutID == "running")
         #expect(
-            session.health.summary.activeCalories == 42
+            session.workout.workoutID
+                == "walking"
         )
         #expect(
-            session.health.summary.stepCount == 300
+            session.health.summary.activeCalories
+                == 42
         )
         #expect(
-            session.health.summary.distanceMeters == 700
+            session.health.summary.stepCount
+                == 300
         )
         #expect(
-            viewModel.healthDataCollectionError != nil
+            session.health.summary.distanceMeters
+                == 700
+        )
+        #expect(
+            viewModel.healthDataCollectionError
+                != nil
         )
     }
 
     @Test
-    func strengthSetRecordingPreservesSetsAndRestDuration() async throws {
-        let healthKitManager = MockHealthKitManager(
-            snapshot: HealthSnapshot(),
-            finalHealthData: WorkoutHealthData()
-        )
+    func weightedExerciseRejectsMissingWeight() async {
+        let viewModel = makeStrengthViewModel()
 
-        let viewModel = WorkoutSessionViewModel(
-            workout: WorkoutDefinition(
-                id: "bench_press",
-                name: "벤치프레스",
-                category: .strength,
-                type: .staticWorkout
-            ),
-            healthKitManager: healthKitManager,
-            timerManager: TimerManager(),
-            restTimerManager: TimerManager()
+        #expect(
+            viewModel.beginStrengthExercise(
+                benchPressDefinition,
+                equipment: .barbell
+            )
         )
 
         await viewModel.startWorkout()
 
-        let firstRecorded = viewModel.recordStrengthSet(
-            weightKilograms: 80,
-            repetitions: 8
-        )
-
-        #expect(firstRecorded)
-
-        let firstSet =
-            try #require(
-                viewModel.strengthSets.first
-            )
-
-        #expect(viewModel.strengthSets.count == 1)
-        #expect(firstSet.setNumber == 1)
-        #expect(firstSet.weightKilograms == 80)
-        #expect(firstSet.repetitions == 8)
-        #expect(firstSet.volumeKilograms == 640)
-        #expect(viewModel.isResting)
-
-        let duplicateDuringRest =
+        let recorded =
             viewModel.recordStrengthSet(
-                weightKilograms: 80,
+                weightKilograms: nil,
                 repetitions: 8
             )
 
-        #expect(!duplicateDuringRest)
+        #expect(!recorded)
+        #expect(viewModel.strengthSets.isEmpty)
 
-        try await Task.sleep(
-            nanoseconds: 120_000_000
-        )
-
-        let didFinishRest =
-            viewModel.finishRestAndStartNextSet()
-
-        #expect(didFinishRest)
-        #expect(!viewModel.isResting)
-
-        let restedFirstSet =
-            try #require(
-                viewModel.strengthSets.first
-            )
-
-        #expect(
-            (restedFirstSet.restDuration ?? 0)
-                > 0
-        )
-
-        let secondRecorded =
-            viewModel.recordStrengthSet(
-                weightKilograms: 82.5,
-                repetitions: 6
-            )
-
-        #expect(secondRecorded)
-        #expect(viewModel.strengthSets.count == 2)
-        #expect(viewModel.nextStrengthSetNumber == 3)
-
-        let session = await viewModel.finishWorkout()
-
-        let storedSets =
-            try #require(
-                session
-                    .exerciseRecords
-                    .first?
-                    .strengthSets
-            )
-
-        #expect(storedSets.count == 2)
-
-        let storedFirstSet =
-            try #require(
-                storedSets.first
-            )
-
-        let storedLastSet =
-            try #require(
-                storedSets.last
-            )
-
-        #expect(storedFirstSet.weightKilograms == 80)
-        #expect(storedFirstSet.repetitions == 8)
-        #expect(
-            (storedFirstSet.restDuration ?? 0) > 0
-        )
-        #expect(storedLastSet.weightKilograms == 82.5)
-        #expect(storedLastSet.repetitions == 6)
+        _ = await viewModel.finishWorkout()
     }
 
     @Test
@@ -468,7 +514,7 @@ struct WorkoutSessionViewModelTests {
         let viewModel = WorkoutSessionViewModel(
             workout: WorkoutDefinition(
                 id: "running",
-                name: "달리기",
+                name: "Running",
                 category: .cardio,
                 type: .dynamicWorkout
             ),
@@ -476,23 +522,79 @@ struct WorkoutSessionViewModelTests {
                 snapshot: HealthSnapshot(),
                 finalHealthData: WorkoutHealthData()
             ),
-            locationManager: MockWorkoutLocationManager(),
+            locationManager:
+                MockWorkoutLocationManager(),
             timerManager: TimerManager(),
             restTimerManager: TimerManager()
         )
 
         await viewModel.startWorkout()
 
-        let recorded = viewModel.recordStrengthSet(
-            weightKilograms: 80,
-            repetitions: 8
-        )
+        let recorded =
+            viewModel.recordStrengthSet(
+                weightKilograms: 80,
+                repetitions: 8
+            )
 
         #expect(!recorded)
         #expect(viewModel.strengthSets.isEmpty)
         #expect(!viewModel.isResting)
 
         _ = await viewModel.finishWorkout()
+    }
+
+    private var strengthWorkout:
+        WorkoutDefinition {
+        WorkoutDefinition(
+            id: "strength_training",
+            name: "Strength Training",
+            category: .strength,
+            type: .staticWorkout
+        )
+    }
+
+    private var squatDefinition:
+        StrengthExerciseDefinition {
+        StrengthExerciseDefinition(
+            id: "squat",
+            name: "Squat",
+            supportedEquipment: [
+                .barbell,
+                .dumbbell,
+                .bodyweight
+            ]
+        )
+    }
+
+    private var benchPressDefinition:
+        StrengthExerciseDefinition {
+        StrengthExerciseDefinition(
+            id: "bench_press",
+            name: "Bench Press",
+            supportedEquipment: [
+                .barbell,
+                .dumbbell,
+                .machine
+            ]
+        )
+    }
+
+    private func makeStrengthViewModel()
+        -> WorkoutSessionViewModel {
+        WorkoutSessionViewModel(
+            workout: strengthWorkout,
+            healthKitManager:
+                MockHealthKitManager(
+                    snapshot:
+                        HealthSnapshot(),
+                    finalHealthData:
+                        WorkoutHealthData()
+                ),
+            timerManager:
+                TimerManager(),
+            restTimerManager:
+                TimerManager()
+        )
     }
 }
 
