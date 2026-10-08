@@ -443,10 +443,6 @@ final class WorkoutSessionViewModel: ObservableObject {
 
         timerManager.stop()
 
-        if workout.requiresLocationTracking {
-            locationManager?.stopTracking()
-        }
-
         healthTask?.cancel()
         healthTask = nil
 
