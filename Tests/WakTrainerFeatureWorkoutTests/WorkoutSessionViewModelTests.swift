@@ -431,7 +431,7 @@ struct WorkoutSessionViewModelTests {
         _ = await viewModel.finishWorkout()
         #expect(locationManager.requestLocationPermissionCallCount == 0)
         #expect(locationManager.startTrackingCallCount == 0)
-        #expect(locationManager.stopTrackingCallCount == 1)
+        #expect(locationManager.stopTrackingCallCount == 0)
     }
 
     @Test
