@@ -8,11 +8,13 @@ struct WorkoutReportView: View {
 
     @StateObject private var viewModel: WorkoutReportViewModel
 
+    private let weightUnit: WorkoutWeightUnit
     private let onDone: () -> Void
 
     init(
         session: WorkoutSession,
         maximumHeartRate: Double? = nil,
+        weightUnit: WorkoutWeightUnit = .kg,
         onDone: @escaping () -> Void
     ) {
         _viewModel = StateObject(
@@ -22,6 +24,7 @@ struct WorkoutReportView: View {
             )
         )
 
+        self.weightUnit = weightUnit
         self.onDone = onDone
     }
 
@@ -199,16 +202,16 @@ struct WorkoutReportView: View {
                     reportMetric(
                         title: "Total Volume",
                         value: formatNumber(
-                            strength.totalVolumeKilograms,
-                            suffix: " kg"
+                            strength.totalVolumeKilograms.map { weightUnit.fromKilograms($0) },
+                            suffix: " \(weightUnit.rawValue)"
                         )
                     )
 
                     reportMetric(
                         title: "Maximum Weight",
                         value: formatNumber(
-                            strength.maximumWeightKilograms,
-                            suffix: " kg"
+                            strength.maximumWeightKilograms.map { weightUnit.fromKilograms($0) },
+                            suffix: " \(weightUnit.rawValue)"
                         )
                     )
 
@@ -637,8 +640,9 @@ struct WorkoutReportView: View {
         }
 
         return String(
-            format: "%.1f kg × %@",
-            weight,
+            format: "%.1f %@ × %@",
+            weightUnit.fromKilograms(weight),
+            weightUnit.rawValue,
             repetitions
         )
     }
