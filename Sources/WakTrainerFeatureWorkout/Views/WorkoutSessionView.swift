@@ -12,6 +12,7 @@ struct WorkoutSessionView: View {
         WorkoutSessionViewModel
     @State private var isExercisePickerPresented =
         false
+    @State private var didPresentInitialExercisePicker = false
 
     private let workout:
         WorkoutDefinition
@@ -88,6 +89,14 @@ struct WorkoutSessionView: View {
                 }
             }
         }
+        .onAppear {
+            guard workout.category == .strength,
+                  viewModel.timerState == .idle,
+                  viewModel.activeStrengthExercise == nil,
+                  !didPresentInitialExercisePicker else { return }
+            didPresentInitialExercisePicker = true
+            isExercisePickerPresented = true
+        }
         .sheet(
             isPresented:
                 $isExercisePickerPresented
@@ -103,15 +112,14 @@ struct WorkoutSessionView: View {
                     exercise,
                     equipment in
 
-                    _ = viewModel
-                        .beginStrengthExercise(
-                            exercise,
-                            equipment:
-                                equipment
-                        )
-
-                    isExercisePickerPresented =
-                        false
+                    let didSelect = viewModel.beginStrengthExercise(
+                        exercise,
+                        equipment: equipment
+                    )
+                    isExercisePickerPresented = false
+                    if didSelect && viewModel.timerState == .idle {
+                        Task { await viewModel.startWorkout() }
+                    }
                 }
             )
         }
