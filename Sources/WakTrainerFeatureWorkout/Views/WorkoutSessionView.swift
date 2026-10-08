@@ -14,6 +14,7 @@ struct WorkoutSessionView: View {
         false
     @State private var didPresentInitialExercisePicker = false
 
+    private let strengthLocationPolicy: StrengthWorkoutLocationPolicy
     private let weightUnit: WorkoutWeightUnit
     private let workout:
         WorkoutDefinition
@@ -30,6 +31,7 @@ struct WorkoutSessionView: View {
         sessionRepository:
             (any WorkoutSessionRepository)? = nil,
         weightUnit: WorkoutWeightUnit = .kg,
+        strengthLocationPolicy: StrengthWorkoutLocationPolicy = .singleLocation,
         onCancel:
             @escaping () -> Void,
         onFinished:
@@ -37,6 +39,7 @@ struct WorkoutSessionView: View {
     ) {
         self.workout = workout
         self.weightUnit = weightUnit
+        self.strengthLocationPolicy = strengthLocationPolicy
         self.onCancel = onCancel
         self.onFinished = onFinished
 
@@ -62,6 +65,7 @@ struct WorkoutSessionView: View {
                     workout: workout,
                     restoredSession:
                         restoredSession,
+                    strengthLocationPolicy: strengthLocationPolicy,
                     sessionRepository:
                         resolvedRepository
                 )

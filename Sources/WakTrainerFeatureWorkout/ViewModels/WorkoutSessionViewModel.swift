@@ -58,6 +58,10 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     private let healthKitManager: HealthKitManagerProtocol
     private let locationManager: (any WorkoutLocationManaging)?
+    private let strengthLocationPolicy: StrengthWorkoutLocationPolicy
+    private var didCaptureStrengthLocation = false
+    private var snapshotTimeoutTask: Task<Void, Never>?
+    private var locationSubscriptions = Set<AnyCancellable>()
     private let sessionRepository: (any WorkoutSessionRepository)?
     private(set) var timerManager: TimerManager
     private let restTimerManager: TimerManager
@@ -132,17 +136,19 @@ final class WorkoutSessionViewModel: ObservableObject {
             HealthKitManagerProtocol = HealthKitManager(),
         locationManager:
             (any WorkoutLocationManaging)? = nil,
+        strengthLocationPolicy: StrengthWorkoutLocationPolicy = .singleLocation,
         sessionRepository:
             (any WorkoutSessionRepository)? = nil,
         timerManager: TimerManager = TimerManager(),
         restTimerManager: TimerManager = TimerManager()
     ) {
         self.workout = workout
+        self.strengthLocationPolicy = strengthLocationPolicy
         self.healthKitManager = healthKitManager
 
         if let locationManager {
             self.locationManager = locationManager
-        } else if workout.requiresLocationTracking {
+        } else if workout.requiresLocationTracking || (workout.category == .strength && strengthLocationPolicy == .singleLocation) {
             self.locationManager = LocationManager()
         } else {
             self.locationManager = nil
@@ -164,6 +170,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     deinit {
         healthTask?.cancel()
         checkpointTask?.cancel()
+        snapshotTimeoutTask?.cancel()
     }
 
     // MARK: - Setup
@@ -172,7 +179,19 @@ final class WorkoutSessionViewModel: ObservableObject {
         if let locationManager {
             locationManager.userLocationPublisher
                 .receive(on: DispatchQueue.main)
-                .assign(to: &$userLocation)
+                .sink { [weak self] location in
+                    guard let self else { return }
+                    self.userLocation = location
+                    guard self.workout.category == .strength,
+                          self.strengthLocationPolicy == .singleLocation,
+                          self.timerState != .idle,
+                          !self.didCaptureStrengthLocation,
+                          let location, location.horizontalAccuracy >= 0 else { return }
+                    self.didCaptureStrengthLocation = true
+                    self.snapshotTimeoutTask?.cancel()
+                    self.locationManager?.stopTracking()
+                }
+                .store(in: &locationSubscriptions)
 
             let routeCoordinatePrefix =
                 restoredRouteCoordinates
@@ -251,6 +270,17 @@ final class WorkoutSessionViewModel: ObservableObject {
 
         if workout.requiresLocationTracking {
             locationManager?.startTracking()
+        } else if workout.category == .strength,
+                  strengthLocationPolicy == .singleLocation {
+            didCaptureStrengthLocation = false
+            locationManager?.requestLocationPermission()
+            locationManager?.startTracking()
+            snapshotTimeoutTask?.cancel()
+            snapshotTimeoutTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(15))
+                guard !Task.isCancelled else { return }
+                self?.locationManager?.stopTracking()
+            }
         }
 
         startHealthObservation()
@@ -259,7 +289,9 @@ final class WorkoutSessionViewModel: ObservableObject {
     }
 
     func pauseWorkout() {
+        guard timerState == .running else { return }
         timerManager.pause()
+        if workout.requiresLocationTracking { locationManager?.stopTracking() }
 
         if isResting {
             restTimerManager.pause()
@@ -287,6 +319,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         }
 
         timerManager.start()
+        if workout.requiresLocationTracking { locationManager?.startTracking() }
 
         if isResting {
             restTimerManager.start()
@@ -403,14 +436,14 @@ final class WorkoutSessionViewModel: ObservableObject {
     }
 
     private func stopWorkout() async {
+        snapshotTimeoutTask?.cancel()
+        if workout.requiresLocationTracking || strengthLocationPolicy == .singleLocation {
+            locationManager?.stopTracking()
+        }
         restTimerManager.stop()
         isResting = false
 
         timerManager.stop()
-
-        if workout.requiresLocationTracking {
-            locationManager?.stopTracking()
-        }
 
         healthTask?.cancel()
         healthTask = nil

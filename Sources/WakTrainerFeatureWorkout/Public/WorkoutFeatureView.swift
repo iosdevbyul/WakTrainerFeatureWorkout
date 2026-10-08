@@ -24,6 +24,7 @@ public struct WorkoutFeatureView: View {
         (any WorkoutSessionRepository)?
     private let preferenceStore:
         any WorkoutLauncherPreferenceStore
+    private let strengthLocationPolicy: StrengthWorkoutLocationPolicy
     private let weightUnit: WorkoutWeightUnit
     private let maximumHeartRate: Double?
     private let startsFromDirectWorkout: Bool
@@ -35,6 +36,7 @@ public struct WorkoutFeatureView: View {
     public init(
         maximumHeartRate: Double? = nil,
         weightUnit: WorkoutWeightUnit = .kg,
+        strengthLocationPolicy: StrengthWorkoutLocationPolicy = .singleLocation,
         onFinished:
             @escaping (WorkoutSession) -> Void
     ) {
@@ -48,6 +50,7 @@ public struct WorkoutFeatureView: View {
             maximumHeartRate:
                 maximumHeartRate,
             weightUnit: weightUnit,
+            strengthLocationPolicy: strengthLocationPolicy,
             onCancelled: nil,
             onFinished:
                 onFinished
@@ -68,6 +71,7 @@ public struct WorkoutFeatureView: View {
                 UserDefaultsWorkoutLauncherPreferenceStore(),
         maximumHeartRate: Double? = nil,
         weightUnit: WorkoutWeightUnit = .kg,
+        strengthLocationPolicy: StrengthWorkoutLocationPolicy = .singleLocation,
         onCancelled:
             (() -> Void)? = nil,
         onFinished:
@@ -92,6 +96,7 @@ public struct WorkoutFeatureView: View {
         self.maximumHeartRate =
             maximumHeartRate
         self.weightUnit = weightUnit
+        self.strengthLocationPolicy = strengthLocationPolicy
         self.startsFromDirectWorkout =
             initialWorkout != nil
         self.onCancelled =
@@ -147,6 +152,7 @@ public struct WorkoutFeatureView: View {
                 sessionRepository:
                     sessionRepository,
                 weightUnit: weightUnit,
+                strengthLocationPolicy: strengthLocationPolicy,
                 onCancel: {
                     if startsFromDirectWorkout {
                         onCancelled?()
