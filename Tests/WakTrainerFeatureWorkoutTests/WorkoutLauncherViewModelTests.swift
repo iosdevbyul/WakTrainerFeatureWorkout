@@ -27,19 +27,18 @@ struct WorkoutLauncherViewModelTests {
         await viewModel.loadWorkouts()
 
         #expect(
-            viewModel
-                .quickStartItems
+            viewModel.quickStartItems
                 .map { $0.workout.id }
                 == [
                     "running",
                     "walking",
-                    "swimming",
-                    "squat"
+                    "cycling",
+                    "strength_training"
                 ]
         )
+
         #expect(
-            viewModel
-                .quickStartItems
+            viewModel.quickStartItems
                 .allSatisfy {
                     $0.source == .catalog
                 }
@@ -51,9 +50,10 @@ struct WorkoutLauncherViewModelTests {
         let preferences =
             LauncherTestPreferenceStore(
                 favorites: [
-                    "bench_press"
+                    "strength_training"
                 ]
             )
+
         let viewModel =
             makeViewModel(
                 preferenceStore:
@@ -63,73 +63,87 @@ struct WorkoutLauncherViewModelTests {
         await viewModel.loadWorkouts()
 
         #expect(
-            viewModel
-                .quickStartItems
-                .first?
-                .workout.id
-                == "bench_press"
+            viewModel.quickStartItems
+                .first?.workout.id
+                == "strength_training"
         )
+
         #expect(
-            viewModel
-                .quickStartItems
-                .first?
-                .source
+            viewModel.quickStartItems
+                .first?.source
                 == .favorite
         )
     }
 
-    @Test("frequent and recent workouts personalize quick start")
-    func usagePersonalizesQuickStart() async {
+    @Test("legacy strength exercise sessions aggregate into strength training")
+    func legacyStrengthUsagePersonalizesQuickStart()
+        async {
         let now = Date(
             timeIntervalSince1970:
                 1_900_000_000
         )
+
         let sessions = [
             makeCompletedSession(
                 workoutID:
                     "bench_press",
                 name:
                     "Bench Press",
+                category:
+                    .strength,
+                type:
+                    .staticWorkout,
                 date:
-                    now
-                        .addingTimeInterval(
-                            -3_600
-                        )
+                    now.addingTimeInterval(
+                        -3_600
+                    )
+            ),
+            makeCompletedSession(
+                workoutID:
+                    "squat",
+                name:
+                    "Squat",
+                category:
+                    .strength,
+                type:
+                    .staticWorkout,
+                date:
+                    now.addingTimeInterval(
+                        -7_200
+                    )
             ),
             makeCompletedSession(
                 workoutID:
                     "bench_press",
                 name:
                     "Bench Press",
+                category:
+                    .strength,
+                type:
+                    .staticWorkout,
                 date:
-                    now
-                        .addingTimeInterval(
-                            -7_200
-                        )
-            ),
-            makeCompletedSession(
-                workoutID:
-                    "bench_press",
-                name:
-                    "Bench Press",
-                date:
-                    now
-                        .addingTimeInterval(
-                            -10_800
-                        )
+                    now.addingTimeInterval(
+                        -10_800
+                    )
             ),
             makeCompletedSession(
                 workoutID:
                     "walking",
                 name:
                     "Walking",
+                category:
+                    .cardio,
+                type:
+                    .dynamicWorkout,
                 date: now
             )
         ]
+
         let sessionRepository =
             LauncherMockWorkoutSessionRepository(
                 completed: sessions
             )
+
         let viewModel =
             makeViewModel(
                 sessionRepository:
@@ -139,27 +153,68 @@ struct WorkoutLauncherViewModelTests {
         await viewModel.loadWorkouts()
 
         #expect(
-            viewModel
-                .quickStartItems[0]
+            viewModel.quickStartItems[0]
                 .workout.id
-                == "bench_press"
+                == "strength_training"
         )
         #expect(
-            viewModel
-                .quickStartItems[0]
+            viewModel.quickStartItems[0]
                 .source
                 == .frequent
         )
         #expect(
-            viewModel
-                .quickStartItems[1]
+            viewModel.quickStartItems[1]
                 .workout.id
                 == "walking"
         )
         #expect(
-            viewModel
-                .quickStartItems[1]
+            viewModel.quickStartItems[1]
                 .source
+                == .recent
+        )
+    }
+
+    @Test("legacy cycling sessions aggregate into cycling")
+    func legacyCyclingUsageMapsToCycling()
+        async {
+        let now = Date(
+            timeIntervalSince1970:
+                1_900_000_000
+        )
+
+        let sessionRepository =
+            LauncherMockWorkoutSessionRepository(
+                completed: [
+                    makeCompletedSession(
+                        workoutID:
+                            "outdoor_cycling",
+                        name:
+                            "Outdoor Cycling",
+                        category:
+                            .cardio,
+                        type:
+                            .dynamicWorkout,
+                        date: now
+                    )
+                ]
+            )
+
+        let viewModel =
+            makeViewModel(
+                sessionRepository:
+                    sessionRepository
+            )
+
+        await viewModel.loadWorkouts()
+
+        #expect(
+            viewModel.quickStartItems
+                .first?.workout.id
+                == "cycling"
+        )
+        #expect(
+            viewModel.quickStartItems
+                .first?.source
                 == .recent
         )
     }
@@ -174,37 +229,34 @@ struct WorkoutLauncherViewModelTests {
         await viewModel.loadWorkouts()
 
         #expect(
-            viewModel
-                .quickStartItems
-                .count
+            viewModel.quickStartItems.count
                 == 2
         )
     }
 
-    @Test("any catalog workout can open directly")
-    func arbitraryWorkoutOpensDirectly() async {
+    @Test("top level workout opens directly")
+    func workoutOpensDirectly() async {
         let viewModel = makeViewModel()
 
         await viewModel.loadWorkouts()
 
-        guard let swimming =
-                viewModel
-                    .quickStartItems
+        guard let cycling =
+                viewModel.quickStartItems
                     .first(
                         where: {
                             $0.workout.id
-                                == "swimming"
+                                == "cycling"
                         }
                     )?
                     .workout else {
             Issue.record(
-                "Expected swimming in quick start"
+                "Expected Cycling in quick start"
             )
             return
         }
 
         viewModel.openWorkout(
-            swimming
+            cycling
         )
 
         guard case .workout(
@@ -217,9 +269,56 @@ struct WorkoutLauncherViewModelTests {
         }
 
         #expect(
-            workout.id
-                == "swimming"
+            workout.id == "cycling"
         )
+    }
+
+    @Test("legacy strength recovery opens strength training")
+    func legacyStrengthRecoveryMapsToStrengthTraining()
+        async {
+        let stored =
+            makeStoredSession(
+                workoutID: "squat",
+                name: "Squat",
+                category: .strength,
+                type: .staticWorkout
+            )
+
+        let viewModel =
+            makeViewModel(
+                sessionRepository:
+                    LauncherMockWorkoutSessionRepository(
+                        incomplete: [
+                            stored
+                        ]
+                    )
+            )
+
+        await viewModel
+            .loadRecoverableWorkout()
+
+        viewModel
+            .openRecoverableWorkout()
+
+        guard case .recovered(
+            let workout,
+            let recovered
+        ) = viewModel.destination else {
+            Issue.record(
+                "Expected recovered workout destination"
+            )
+            return
+        }
+
+        #expect(
+            workout.id
+                == "strength_training"
+        )
+        #expect(
+            workout.name
+                == "Strength Training"
+        )
+        #expect(recovered == stored)
     }
 
     @Test("browse all opens workout catalog")
@@ -240,66 +339,24 @@ struct WorkoutLauncherViewModelTests {
         }
     }
 
-    @Test("incomplete workout is exposed as a recovery destination")
-    func incompleteWorkoutCanBeRecovered()
-        async throws {
-        let stored =
-            makeStoredSession()
-        let sessionRepository =
-            LauncherMockWorkoutSessionRepository(
-                incomplete: [
-                    stored
-                ]
-            )
-        let viewModel =
-            makeViewModel(
-                sessionRepository:
-                    sessionRepository
-            )
-
-        await viewModel
-            .loadRecoverableWorkout()
-
-        #expect(
-            viewModel
-                .recoverableSession
-                == stored
-        )
-        #expect(
-            viewModel
-                .isRecoveryPromptPresented
-        )
-
-        viewModel
-            .openRecoverableWorkout()
-
-        guard case .recovered(
-            let workout,
-            let recovered
-        ) = viewModel.destination else {
-            Issue.record(
-                "Expected recovered workout destination"
-            )
-            return
-        }
-
-        #expect(
-            workout.id == "running"
-        )
-        #expect(recovered == stored)
-    }
-
     @Test("discard removes the incomplete workout")
     func incompleteWorkoutCanBeDiscarded()
         async {
         let stored =
-            makeStoredSession()
+            makeStoredSession(
+                workoutID: "running",
+                name: "Running",
+                category: .cardio,
+                type: .dynamicWorkout
+            )
+
         let sessionRepository =
             LauncherMockWorkoutSessionRepository(
                 incomplete: [
                     stored
                 ]
             )
+
         let viewModel =
             makeViewModel(
                 sessionRepository:
@@ -312,15 +369,13 @@ struct WorkoutLauncherViewModelTests {
             .discardRecoverableWorkout()
 
         #expect(
-            sessionRepository
-                .deletedIDs
+            sessionRepository.deletedIDs
                 == [
                     stored.session.id
                 ]
         )
         #expect(
-            viewModel
-                .recoverableSession
+            viewModel.recoverableSession
                 == nil
         )
     }
@@ -334,8 +389,7 @@ private extension WorkoutLauncherViewModelTests {
         preferenceStore:
             any WorkoutLauncherPreferenceStore =
                 LauncherTestPreferenceStore(),
-        quickWorkoutLimit:
-            Int = 4
+        quickWorkoutLimit: Int = 4
     ) -> WorkoutLauncherViewModel {
         let repository =
             LauncherMockWorkoutCatalogRepository(
@@ -374,20 +428,14 @@ private extension WorkoutLauncherViewModelTests {
                 type: .dynamicWorkout
             ),
             WorkoutDefinition(
-                id: "swimming",
-                name: "Swimming",
+                id: "cycling",
+                name: "Cycling",
                 category: .cardio,
-                type: .staticWorkout
+                type: .dynamicWorkout
             ),
             WorkoutDefinition(
-                id: "squat",
-                name: "Squat",
-                category: .strength,
-                type: .staticWorkout
-            ),
-            WorkoutDefinition(
-                id: "bench_press",
-                name: "Bench Press",
+                id: "strength_training",
+                name: "Strength Training",
                 category: .strength,
                 type: .staticWorkout
             )
@@ -397,6 +445,8 @@ private extension WorkoutLauncherViewModelTests {
     func makeCompletedSession(
         workoutID: String,
         name: String,
+        category: WorkoutCategory,
+        type: WorkoutType,
         date: Date
     ) -> StoredWorkoutSession {
         let session =
@@ -407,17 +457,15 @@ private extension WorkoutLauncherViewModelTests {
                             workoutID,
                         name: name,
                         category:
-                            "strength",
-                        type:
-                            .staticWorkout
+                            category.rawValue,
+                        type: type
                     ),
                 timing:
                     WorkoutTiming(
                         startDate:
-                            date
-                                .addingTimeInterval(
-                                    -1_800
-                                ),
+                            date.addingTimeInterval(
+                                -1_800
+                            ),
                         endDate: date,
                         elapsedDuration:
                             1_800,
@@ -435,29 +483,32 @@ private extension WorkoutLauncherViewModelTests {
         )
     }
 
-    func makeStoredSession()
-        -> StoredWorkoutSession {
+    func makeStoredSession(
+        workoutID: String,
+        name: String,
+        category: WorkoutCategory,
+        type: WorkoutType
+    ) -> StoredWorkoutSession {
         let start =
             Date(
                 timeIntervalSince1970:
                     1_800_000_000
             )
+
         let session =
             WorkoutSession(
                 workout:
                     WorkoutIdentity(
                         workoutID:
-                            "running",
-                        name: "Running",
+                            workoutID,
+                        name: name,
                         category:
-                            "cardio",
-                        type:
-                            .dynamicWorkout
+                            category.rawValue,
+                        type: type
                     ),
                 timing:
                     WorkoutTiming(
-                        startDate:
-                            start,
+                        startDate: start,
                         endDate: nil,
                         elapsedDuration:
                             300,
@@ -474,10 +525,9 @@ private extension WorkoutLauncherViewModelTests {
                 .inProgress,
             syncState: .pending,
             updatedAt:
-                start
-                    .addingTimeInterval(
-                        300
-                    )
+                start.addingTimeInterval(
+                    300
+                )
         )
     }
 }
@@ -585,9 +635,7 @@ private final class LauncherMockWorkoutSessionRepository:
         -> [StoredWorkoutSession] {
         completed.filter {
             let date =
-                $0.session
-                    .timing
-                    .endDate
+                $0.session.timing.endDate
                 ?? $0.updatedAt
 
             return date >= startDate

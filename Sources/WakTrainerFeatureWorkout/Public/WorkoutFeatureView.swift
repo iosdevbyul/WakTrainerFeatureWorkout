@@ -25,6 +25,7 @@ public struct WorkoutFeatureView: View {
     private let preferenceStore:
         any WorkoutLauncherPreferenceStore
     private let maximumHeartRate: Double?
+    private let startsFromDirectWorkout: Bool
     private let onCancelled:
         (() -> Void)?
     private let onFinished:
@@ -86,6 +87,8 @@ public struct WorkoutFeatureView: View {
             preferenceStore
         self.maximumHeartRate =
             maximumHeartRate
+        self.startsFromDirectWorkout =
+            initialWorkout != nil
         self.onCancelled =
             onCancelled
         self.onFinished =
@@ -139,8 +142,12 @@ public struct WorkoutFeatureView: View {
                 sessionRepository:
                     sessionRepository,
                 onCancel: {
-                    coordinator
-                        .returnToSelection()
+                    if startsFromDirectWorkout {
+                        onCancelled?()
+                    } else {
+                        coordinator
+                            .returnToSelection()
+                    }
                 },
                 onFinished: {
                     session in
@@ -170,15 +177,36 @@ public struct WorkoutFeatureView: View {
         _ workout:
             WorkoutDefinition
     ) -> StoredWorkoutSession? {
-        guard let restoredSession,
-              restoredSession
-                .session
-                .workout
-                .workoutID
-                == workout.id else {
+        guard let restoredSession else {
             return nil
         }
 
-        return restoredSession
+        let storedWorkout =
+            restoredSession
+                .session
+                .workout
+
+        if storedWorkout.workoutID
+            == workout.id {
+            return restoredSession
+        }
+
+        if workout.id
+            == "strength_training",
+           storedWorkout.category
+            == WorkoutCategory
+                .strength.rawValue {
+            return restoredSession
+        }
+
+        if workout.id == "cycling",
+           storedWorkout.workoutID
+            == "outdoor_cycling"
+            || storedWorkout.workoutID
+                == "indoor_cycling" {
+            return restoredSession
+        }
+
+        return nil
     }
 }

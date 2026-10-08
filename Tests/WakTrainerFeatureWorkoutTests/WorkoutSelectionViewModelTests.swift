@@ -27,8 +27,8 @@ struct WorkoutSelectionViewModelTests {
                         type: .dynamicWorkout
                     ),
                     WorkoutDefinition(
-                        id: "squat",
-                        name: "Squat",
+                        id: "strength_training",
+                        name: "Strength Training",
                         category: .strength,
                         type: .staticWorkout
                     )
@@ -78,8 +78,8 @@ struct WorkoutSelectionViewModelTests {
                         type: .dynamicWorkout
                     ),
                     WorkoutDefinition(
-                        id: "squat",
-                        name: "Squat",
+                        id: "strength_training",
+                        name: "Strength Training",
                         category: .strength,
                         type: .staticWorkout
                     )

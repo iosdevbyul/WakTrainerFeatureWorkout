@@ -26,8 +26,14 @@ final class WorkoutReportViewModel: ObservableObject {
         )
     }
 
+    var strengthExerciseRecords: [WorkoutExerciseRecord] {
+        session.exerciseRecords.filter {
+            $0.kind == .strength
+        }
+    }
+
     var strengthSets: [StrengthSetRecord] {
-        session.exerciseRecords
+        strengthExerciseRecords
             .flatMap(\.strengthSets)
             .filter(\.isCompleted)
     }

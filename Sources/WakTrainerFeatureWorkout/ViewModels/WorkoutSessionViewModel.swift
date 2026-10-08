@@ -85,9 +85,20 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     // MARK: - Strength Data
 
-    @Published private(set) var strengthSets: [StrengthSetRecord] = []
+    @Published private(set) var activeStrengthExercise:
+        StrengthExerciseDefinition?
+    @Published private(set) var activeStrengthEquipment:
+        StrengthEquipment?
+    @Published private(set) var completedStrengthExerciseRecords:
+        [WorkoutExerciseRecord] = []
+    @Published private(set) var strengthSets:
+        [StrengthSetRecord] = []
     @Published private(set) var isResting = false
-    @Published private(set) var restElapsedTime: TimeInterval = 0
+    @Published private(set) var restElapsedTime:
+        TimeInterval = 0
+
+    private var activeStrengthExerciseStartDate:
+        Date?
 
     // MARK: - Session State
 
@@ -117,9 +128,12 @@ final class WorkoutSessionViewModel: ObservableObject {
     init(
         workout: WorkoutDefinition,
         restoredSession: StoredWorkoutSession? = nil,
-        healthKitManager: HealthKitManagerProtocol = HealthKitManager(),
-        locationManager: (any WorkoutLocationManaging)? = nil,
-        sessionRepository: (any WorkoutSessionRepository)? = nil,
+        healthKitManager:
+            HealthKitManagerProtocol = HealthKitManager(),
+        locationManager:
+            (any WorkoutLocationManaging)? = nil,
+        sessionRepository:
+            (any WorkoutSessionRepository)? = nil,
         timerManager: TimerManager = TimerManager(),
         restTimerManager: TimerManager = TimerManager()
     ) {
@@ -135,7 +149,6 @@ final class WorkoutSessionViewModel: ObservableObject {
         }
 
         self.sessionRepository = sessionRepository
-
         self.timerManager = timerManager
         self.restTimerManager = restTimerManager
 
@@ -200,21 +213,40 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     // MARK: - Workout Actions
 
+    var canStartWorkout: Bool {
+        guard workout.category == .strength else {
+            return true
+        }
+
+        return activeStrengthExercise != nil
+            && activeStrengthEquipment != nil
+    }
+
     func startWorkout() async {
-        guard timerState == .idle else {
+        guard timerState == .idle,
+              canStartWorkout else {
             return
         }
 
-        resetSessionState()
+        resetSessionStateForNewWorkout()
         sessionID = UUID()
 
-        _ = try? await healthKitManager.requestAuthorization()
+        _ = try? await healthKitManager
+            .requestAuthorization()
 
         if workout.requiresLocationTracking {
-            locationManager?.requestLocationPermission()
+            locationManager?
+                .requestLocationPermission()
         }
 
-        sessionStartDate = Date()
+        let startDate = Date()
+        sessionStartDate = startDate
+
+        if activeStrengthExercise != nil {
+            activeStrengthExerciseStartDate =
+                startDate
+        }
+
         timerManager.start()
 
         if workout.requiresLocationTracking {
@@ -270,14 +302,19 @@ final class WorkoutSessionViewModel: ObservableObject {
         checkpointTask = nil
 
         let endDate = Date()
-        let startDate = sessionStartDate ?? endDate
+        let startDate =
+            sessionStartDate ?? endDate
         let activeDuration = elapsedTime
         let finalSessionID = sessionID
-
         let finalRoutePoints = routePoints
-        let finalStrengthSets = strengthSets
 
-        let liveActiveCalories = activeCalories
+        let finalStrengthExerciseRecords =
+            strengthExerciseRecordsSnapshot(
+                endDate: endDate
+            )
+
+        let liveActiveCalories =
+            activeCalories
         let liveStepCount = stepCount
         let liveDistance = distanceMeters
 
@@ -289,60 +326,75 @@ final class WorkoutSessionViewModel: ObservableObject {
             if let recoveryResumeDate {
                 let resumedHealthData =
                     await collectFinalHealthData(
-                        from: recoveryResumeDate,
+                        from:
+                            recoveryResumeDate,
                         to: endDate,
-                        liveActiveCalories: max(
-                            0,
-                            liveActiveCalories -
-                            recoveredActiveCaloriesBase
-                        ),
-                        liveStepCount: max(
-                            0,
-                            liveStepCount -
-                            recoveredStepCountBase
-                        ),
-                        liveDistance: max(
-                            0,
-                            liveDistance -
-                            recoveredDistanceBase
-                        )
+                        liveActiveCalories:
+                            max(
+                                0,
+                                liveActiveCalories
+                                - recoveredActiveCaloriesBase
+                            ),
+                        liveStepCount:
+                            max(
+                                0,
+                                liveStepCount
+                                - recoveredStepCountBase
+                            ),
+                        liveDistance:
+                            max(
+                                0,
+                                liveDistance
+                                - recoveredDistanceBase
+                            )
                     )
 
                 healthData =
                     mergeRecoveredHealthData(
                         recoveredHealthData,
-                        with: resumedHealthData
+                        with:
+                            resumedHealthData
                     )
             } else {
-                healthData = recoveredHealthData
+                healthData =
+                    recoveredHealthData
             }
         } else {
-            healthData = await collectFinalHealthData(
-                from: startDate,
-                to: endDate,
-                liveActiveCalories: liveActiveCalories,
-                liveStepCount: liveStepCount,
-                liveDistance: liveDistance
-            )
+            healthData =
+                await collectFinalHealthData(
+                    from: startDate,
+                    to: endDate,
+                    liveActiveCalories:
+                        liveActiveCalories,
+                    liveStepCount:
+                        liveStepCount,
+                    liveDistance:
+                        liveDistance
+                )
         }
 
         let session = makeSession(
             id: finalSessionID,
             startDate: startDate,
             endDate: endDate,
-            activeDuration: activeDuration,
+            activeDuration:
+                activeDuration,
             healthData: healthData,
-            routePoints: finalRoutePoints,
-            strengthSets: finalStrengthSets
+            routePoints:
+                finalRoutePoints,
+            strengthExerciseRecords:
+                finalStrengthExerciseRecords
         )
 
         do {
-            try await sessionRepository?.saveCompleted(
-                session
-            )
+            try await sessionRepository?
+                .saveCompleted(
+                    session
+                )
             storageError = nil
         } catch {
-            storageError = error.localizedDescription
+            storageError =
+                error.localizedDescription
         }
 
         sessionStartDate = nil
@@ -363,7 +415,8 @@ final class WorkoutSessionViewModel: ObservableObject {
         healthTask?.cancel()
         healthTask = nil
 
-        await healthKitManager.stopObservingData()
+        await healthKitManager
+            .stopObservingData()
     }
 
     func recordLap() {
@@ -374,30 +427,113 @@ final class WorkoutSessionViewModel: ObservableObject {
         }
     }
 
-    // MARK: - Strength Recording
+    // MARK: - Strength Exercise Flow
+
+    @discardableResult
+    func beginStrengthExercise(
+        _ exercise:
+            StrengthExerciseDefinition,
+        equipment:
+            StrengthEquipment
+    ) -> Bool {
+        guard workout.category == .strength,
+              exercise.supportedEquipment
+                .contains(equipment) else {
+            return false
+        }
+
+        if activeStrengthExercise != nil {
+            if !strengthSets.isEmpty {
+                finishCurrentStrengthExerciseInternal(
+                    endDate: Date()
+                )
+            } else {
+                clearActiveStrengthExercise()
+            }
+        }
+
+        restTimerManager.stop()
+        isResting = false
+
+        activeStrengthExercise =
+            exercise
+        activeStrengthEquipment =
+            equipment
+        activeStrengthExerciseStartDate =
+            timerState == .idle
+                ? nil
+                : Date()
+        strengthSets = []
+
+        if timerState != .idle {
+            Task {
+                await saveCheckpoint()
+            }
+        }
+
+        return true
+    }
+
+    @discardableResult
+    func finishCurrentStrengthExercise()
+        -> Bool {
+        guard workout.category == .strength,
+              activeStrengthExercise != nil,
+              !strengthSets.isEmpty else {
+            return false
+        }
+
+        finishCurrentStrengthExerciseInternal(
+            endDate: Date()
+        )
+
+        Task {
+            await saveCheckpoint()
+        }
+
+        return true
+    }
 
     @discardableResult
     func recordStrengthSet(
-        weightKilograms: Double,
+        weightKilograms: Double?,
         repetitions: Int,
         isWarmup: Bool = false
     ) -> Bool {
         guard workout.category == .strength,
               timerManager.isRunning,
               !isResting,
-              weightKilograms >= 0,
+              activeStrengthExercise != nil,
+              let equipment =
+                activeStrengthEquipment,
               repetitions > 0 else {
             return false
         }
 
-        let now = Date()
+        let normalizedWeight:
+            Double?
+
+        if equipment.requiresWeightInput {
+            guard let weightKilograms,
+                  weightKilograms > 0 else {
+                return false
+            }
+
+            normalizedWeight =
+                weightKilograms
+        } else {
+            normalizedWeight = nil
+        }
 
         strengthSets.append(
             StrengthSetRecord(
-                setNumber: strengthSets.count + 1,
-                weightKilograms: weightKilograms,
-                repetitions: repetitions,
-                endDate: now,
+                setNumber:
+                    strengthSets.count + 1,
+                weightKilograms:
+                    normalizedWeight,
+                repetitions:
+                    repetitions,
+                endDate: Date(),
                 isWarmup: isWarmup,
                 isCompleted: true
             )
@@ -415,7 +551,8 @@ final class WorkoutSessionViewModel: ObservableObject {
     }
 
     @discardableResult
-    func finishRestAndStartNextSet() -> Bool {
+    func finishRestAndStartNextSet()
+        -> Bool {
         guard workout.category == .strength,
               isResting,
               !strengthSets.isEmpty else {
@@ -428,8 +565,12 @@ final class WorkoutSessionViewModel: ObservableObject {
         restTimerManager.stop()
 
         strengthSets[
-            strengthSets.index(before: strengthSets.endIndex)
-        ].restDuration = completedRestDuration
+            strengthSets.index(
+                before:
+                    strengthSets.endIndex
+            )
+        ].restDuration =
+            completedRestDuration
 
         isResting = false
 
@@ -444,17 +585,72 @@ final class WorkoutSessionViewModel: ObservableObject {
         strengthSets.count + 1
     }
 
-    var lastStrengthSet: StrengthSetRecord? {
+    var lastStrengthSet:
+        StrengthSetRecord? {
         strengthSets.last
     }
 
-    private func resetSessionState() {
+    var hasStrengthExerciseHistory: Bool {
+        !completedStrengthExerciseRecords
+            .isEmpty
+    }
+
+    private func finishCurrentStrengthExerciseInternal(
+        endDate: Date
+    ) {
+        guard let exercise =
+                activeStrengthExercise,
+              !strengthSets.isEmpty else {
+            clearActiveStrengthExercise()
+            return
+        }
+
+        restTimerManager.stop()
+        isResting = false
+
+        completedStrengthExerciseRecords
+            .append(
+                WorkoutExerciseRecord(
+                    exerciseID:
+                        exercise.id,
+                    name:
+                        exercise.name,
+                    kind: .strength,
+                    strengthEquipment:
+                        activeStrengthEquipment,
+                    startDate:
+                        activeStrengthExerciseStartDate
+                        ?? sessionStartDate
+                        ?? endDate,
+                    endDate: endDate,
+                    strengthSets:
+                        strengthSets
+                )
+            )
+
+        clearActiveStrengthExercise()
+    }
+
+    private func clearActiveStrengthExercise() {
+        restTimerManager.stop()
+        isResting = false
+        activeStrengthExercise = nil
+        activeStrengthEquipment = nil
+        activeStrengthExerciseStartDate = nil
+        strengthSets = []
+    }
+
+    private func resetSessionStateForNewWorkout() {
         healthDataCollectionError = nil
         storageError = nil
 
         restTimerManager.stop()
         isResting = false
+
+        completedStrengthExerciseRecords
+            .removeAll()
         strengthSets.removeAll()
+        activeStrengthExerciseStartDate = nil
     }
 
     // MARK: - Checkpoint Persistence
@@ -462,12 +658,14 @@ final class WorkoutSessionViewModel: ObservableObject {
     private func startCheckpointLoop() {
         checkpointTask?.cancel()
 
-        checkpointTask = Task { [weak self] in
+        checkpointTask = Task {
+            [weak self] in
             while !Task.isCancelled {
                 do {
                     try await Task.sleep(
                         nanoseconds:
-                            Self.checkpointIntervalNanoseconds
+                            Self
+                                .checkpointIntervalNanoseconds
                     )
                 } catch {
                     break
@@ -477,67 +675,100 @@ final class WorkoutSessionViewModel: ObservableObject {
                     break
                 }
 
-                await self?.saveCheckpoint()
+                await self?
+                    .saveCheckpoint()
             }
         }
     }
 
     private func saveCheckpoint() async {
         guard let sessionRepository,
-              let startDate = sessionStartDate else {
+              let startDate =
+                sessionStartDate else {
             return
         }
 
-        let liveHealthData = WorkoutHealthData(
-            summary: WorkoutHealthSummary(
-                averageHeartRate: nonZero(heartRate),
-                activeCalories: nonZero(activeCalories),
-                stepCount: nonZero(stepCount),
-                distanceMeters: nonZero(distanceMeters)
+        let liveHealthData =
+            WorkoutHealthData(
+                summary:
+                    WorkoutHealthSummary(
+                        averageHeartRate:
+                            nonZero(
+                                heartRate
+                            ),
+                        activeCalories:
+                            nonZero(
+                                activeCalories
+                            ),
+                        stepCount:
+                            nonZero(
+                                stepCount
+                            ),
+                        distanceMeters:
+                            nonZero(
+                                distanceMeters
+                            )
+                    )
             )
-        )
 
         let checkpoint = makeSession(
             id: sessionID,
             startDate: startDate,
             endDate: nil,
-            activeDuration: elapsedTime,
-            healthData: liveHealthData,
-            routePoints: routePoints,
-            strengthSets: strengthSets
+            activeDuration:
+                elapsedTime,
+            healthData:
+                liveHealthData,
+            routePoints:
+                routePoints,
+            strengthExerciseRecords:
+                strengthExerciseRecordsSnapshot(
+                    endDate: nil
+                )
         )
 
         do {
-            try await sessionRepository.saveCheckpoint(
-                checkpoint
-            )
+            try await sessionRepository
+                .saveCheckpoint(
+                    checkpoint
+                )
             storageError = nil
         } catch {
-            storageError = error.localizedDescription
+            storageError =
+                error.localizedDescription
         }
     }
 
     // MARK: - Recovery
 
     private func restorePersistedSession(
-        _ storedSession: StoredWorkoutSession
+        _ storedSession:
+            StoredWorkoutSession
     ) {
-        let session = storedSession.session
-        let healthSummary = session.health.summary
+        let session =
+            storedSession.session
+        let healthSummary =
+            session.health.summary
 
         sessionID = session.id
-        sessionStartDate = session.timing.startDate
-        recoveredHealthData = session.health
+        sessionStartDate =
+            session.timing.startDate
+        recoveredHealthData =
+            session.health
 
         recoveredActiveCaloriesBase =
-            healthSummary.activeCalories ?? 0
+            healthSummary.activeCalories
+            ?? 0
         recoveredStepCountBase =
-            healthSummary.stepCount ?? 0
+            healthSummary.stepCount
+            ?? 0
         recoveredDistanceBase =
-            healthSummary.distanceMeters ?? 0
+            healthSummary.distanceMeters
+            ?? 0
 
         heartRate =
-            healthSummary.averageHeartRate ?? 0
+            healthSummary.averageHeartRate
+            ?? 0
         activeCalories =
             recoveredActiveCaloriesBase
         stepCount =
@@ -545,25 +776,32 @@ final class WorkoutSessionViewModel: ObservableObject {
         distanceMeters =
             recoveredDistanceBase
 
-        strengthSets = session.exerciseRecords
-            .flatMap(\.strengthSets)
+        restoreStrengthExerciseRecords(
+            from:
+                session.exerciseRecords
+        )
 
-        restoredRoutePoints = session.route
+        restoredRoutePoints =
+            session.route
         restoredRouteCoordinates =
             session.route.map {
                 CLLocationCoordinate2D(
-                    latitude: $0.latitude,
-                    longitude: $0.longitude
+                    latitude:
+                        $0.latitude,
+                    longitude:
+                        $0.longitude
                 )
             }
 
-        routePoints = restoredRoutePoints
+        routePoints =
+            restoredRoutePoints
         routeCoordinates =
             restoredRouteCoordinates
 
         timerManager.restore(
             elapsedTime:
-                session.timing.activeDuration
+                session.timing
+                    .activeDuration
         )
 
         elapsedTime =
@@ -576,33 +814,102 @@ final class WorkoutSessionViewModel: ObservableObject {
         needsRuntimeRestart = true
     }
 
+    private func restoreStrengthExerciseRecords(
+        from records:
+            [WorkoutExerciseRecord]
+    ) {
+        guard workout.category
+            == .strength else {
+            return
+        }
+
+        let strengthRecords =
+            records.filter {
+                $0.kind == .strength
+            }
+
+        completedStrengthExerciseRecords =
+            strengthRecords.filter {
+                $0.endDate != nil
+            }
+
+        guard let activeRecord =
+                strengthRecords.last(
+                    where: {
+                        $0.endDate == nil
+                    }
+                ) else {
+            return
+        }
+
+        let supportedEquipment:
+            [StrengthEquipment]
+
+        if let equipment =
+                activeRecord
+                    .strengthEquipment {
+            supportedEquipment = [
+                equipment
+            ]
+        } else {
+            supportedEquipment =
+                StrengthEquipment.allCases
+        }
+
+        activeStrengthExercise =
+            StrengthExerciseDefinition(
+                id:
+                    activeRecord
+                        .exerciseID
+                    ?? activeRecord.name,
+                name:
+                    activeRecord.name,
+                supportedEquipment:
+                    supportedEquipment
+            )
+        activeStrengthEquipment =
+            activeRecord
+                .strengthEquipment
+        activeStrengthExerciseStartDate =
+            activeRecord.startDate
+        strengthSets =
+            activeRecord.strengthSets
+    }
+
     // MARK: - Health Observation
 
     private func startHealthObservation() {
         healthTask?.cancel()
 
-        healthTask = Task { [weak self] in
+        healthTask = Task {
+            [weak self] in
             guard let self else {
                 return
             }
 
-            let stream = healthKitManager.startObservingData()
+            let stream =
+                healthKitManager
+                    .startObservingData()
 
             for await snapshot in stream {
                 guard !Task.isCancelled else {
                     break
                 }
 
-                self.heartRate = snapshot.heartRate
+                self.heartRate =
+                    snapshot.heartRate
                 self.activeCalories =
-                    self.recoveredActiveCaloriesBase +
-                    snapshot.activeCalories
+                    self
+                        .recoveredActiveCaloriesBase
+                    + snapshot.activeCalories
                 self.stepCount =
-                    self.recoveredStepCountBase +
-                    snapshot.stepCount
+                    self
+                        .recoveredStepCountBase
+                    + snapshot.stepCount
                 self.distanceMeters =
-                    self.recoveredDistanceBase +
-                    snapshot.distance
+                    self
+                        .recoveredDistanceBase
+                    + snapshot.distance
             }
         }
     }
@@ -615,72 +922,108 @@ final class WorkoutSessionViewModel: ObservableObject {
         liveDistance: Double
     ) async -> WorkoutHealthData {
         do {
-            var healthData = try await healthKitManager
-                .fetchWorkoutHealthData(
-                    from: startDate,
-                    to: endDate
-                )
+            var healthData =
+                try await healthKitManager
+                    .fetchWorkoutHealthData(
+                        from: startDate,
+                        to: endDate
+                    )
 
             mergeLiveTotals(
                 into: &healthData,
-                activeCalories: liveActiveCalories,
-                stepCount: liveStepCount,
-                distance: liveDistance
+                activeCalories:
+                    liveActiveCalories,
+                stepCount:
+                    liveStepCount,
+                distance:
+                    liveDistance
             )
 
             return healthData
         } catch {
-            healthDataCollectionError = error.localizedDescription
+            healthDataCollectionError =
+                error.localizedDescription
 
             return WorkoutHealthData(
-                summary: WorkoutHealthSummary(
-                    activeCalories: nonZero(liveActiveCalories),
-                    stepCount: nonZero(liveStepCount),
-                    distanceMeters: nonZero(liveDistance)
-                )
+                summary:
+                    WorkoutHealthSummary(
+                        activeCalories:
+                            nonZero(
+                                liveActiveCalories
+                            ),
+                        stepCount:
+                            nonZero(
+                                liveStepCount
+                            ),
+                        distanceMeters:
+                            nonZero(
+                                liveDistance
+                            )
+                    )
             )
         }
     }
 
     private func mergeRecoveredHealthData(
-        _ recovered: WorkoutHealthData,
-        with resumed: WorkoutHealthData
+        _ recovered:
+            WorkoutHealthData,
+        with resumed:
+            WorkoutHealthData
     ) -> WorkoutHealthData {
         var merged = resumed
-        let previous = recovered.summary
+        let previous =
+            recovered.summary
 
         merged.summary.activeCalories =
-            (previous.activeCalories ?? 0) +
-            (resumed.summary.activeCalories ?? 0)
+            (previous.activeCalories
+             ?? 0)
+            + (resumed.summary
+                .activeCalories
+               ?? 0)
 
         merged.summary.stepCount =
-            (previous.stepCount ?? 0) +
-            (resumed.summary.stepCount ?? 0)
+            (previous.stepCount
+             ?? 0)
+            + (resumed.summary
+                .stepCount
+               ?? 0)
 
         merged.summary.distanceMeters =
-            (previous.distanceMeters ?? 0) +
-            (resumed.summary.distanceMeters ?? 0)
+            (previous.distanceMeters
+             ?? 0)
+            + (resumed.summary
+                .distanceMeters
+               ?? 0)
 
-        if merged.summary.averageHeartRate == nil {
-            merged.summary.averageHeartRate =
-                previous.averageHeartRate
+        if merged.summary
+            .averageHeartRate == nil {
+            merged.summary
+                .averageHeartRate =
+                previous
+                    .averageHeartRate
         }
 
-        merged.summary.minimumHeartRate =
+        merged.summary
+            .minimumHeartRate =
             minimumOptional(
-                previous.minimumHeartRate,
-                resumed.summary.minimumHeartRate
+                previous
+                    .minimumHeartRate,
+                resumed.summary
+                    .minimumHeartRate
             )
 
-        merged.summary.maximumHeartRate =
+        merged.summary
+            .maximumHeartRate =
             maximumOptional(
-                previous.maximumHeartRate,
-                resumed.summary.maximumHeartRate
+                previous
+                    .maximumHeartRate,
+                resumed.summary
+                    .maximumHeartRate
             )
 
         merged.samples =
-            recovered.samples +
-            resumed.samples
+            recovered.samples
+            + resumed.samples
 
         return merged
     }
@@ -690,11 +1033,20 @@ final class WorkoutSessionViewModel: ObservableObject {
         _ rhs: Double?
     ) -> Double? {
         switch (lhs, rhs) {
-        case let (.some(lhs), .some(rhs)):
+        case let (
+            .some(lhs),
+            .some(rhs)
+        ):
             min(lhs, rhs)
 
-        case let (.some(value), .none),
-             let (.none, .some(value)):
+        case let (
+            .some(value),
+            .none
+        ),
+        let (
+            .none,
+            .some(value)
+        ):
             value
 
         case (.none, .none):
@@ -707,11 +1059,20 @@ final class WorkoutSessionViewModel: ObservableObject {
         _ rhs: Double?
     ) -> Double? {
         switch (lhs, rhs) {
-        case let (.some(lhs), .some(rhs)):
+        case let (
+            .some(lhs),
+            .some(rhs)
+        ):
             max(lhs, rhs)
 
-        case let (.some(value), .none),
-             let (.none, .some(value)):
+        case let (
+            .some(value),
+            .none
+        ),
+        let (
+            .none,
+            .some(value)
+        ):
             value
 
         case (.none, .none):
@@ -720,89 +1081,176 @@ final class WorkoutSessionViewModel: ObservableObject {
     }
 
     private func mergeLiveTotals(
-        into healthData: inout WorkoutHealthData,
+        into healthData:
+            inout WorkoutHealthData,
         activeCalories: Double,
         stepCount: Double,
         distance: Double
     ) {
-        if healthData.summary.activeCalories == nil {
-            healthData.summary.activeCalories = nonZero(activeCalories)
+        if healthData.summary
+            .activeCalories == nil {
+            healthData.summary
+                .activeCalories =
+                nonZero(
+                    activeCalories
+                )
         }
 
-        if healthData.summary.stepCount == nil {
-            healthData.summary.stepCount = nonZero(stepCount)
+        if healthData.summary
+            .stepCount == nil {
+            healthData.summary
+                .stepCount =
+                nonZero(
+                    stepCount
+                )
         }
 
-        if healthData.summary.distanceMeters == nil {
-            healthData.summary.distanceMeters = nonZero(distance)
+        if healthData.summary
+            .distanceMeters == nil {
+            healthData.summary
+                .distanceMeters =
+                nonZero(
+                    distance
+                )
         }
     }
 
     private func nonZero(
         _ value: Double
     ) -> Double? {
-        value > 0 ? value : nil
+        value > 0
+            ? value
+            : nil
     }
 
     // MARK: - Session
+
+    private func strengthExerciseRecordsSnapshot(
+        endDate: Date?
+    ) -> [WorkoutExerciseRecord] {
+        var records =
+            completedStrengthExerciseRecords
+
+        guard let exercise =
+                activeStrengthExercise,
+              !strengthSets.isEmpty else {
+            return records
+        }
+
+        records.append(
+            WorkoutExerciseRecord(
+                exerciseID:
+                    exercise.id,
+                name:
+                    exercise.name,
+                kind: .strength,
+                strengthEquipment:
+                    activeStrengthEquipment,
+                startDate:
+                    activeStrengthExerciseStartDate
+                    ?? sessionStartDate
+                    ?? endDate
+                    ?? Date(),
+                endDate: endDate,
+                strengthSets:
+                    strengthSets
+            )
+        )
+
+        return records
+    }
 
     private func makeSession(
         id: UUID,
         startDate: Date,
         endDate: Date?,
         activeDuration: TimeInterval,
-        healthData: WorkoutHealthData,
-        routePoints: [WorkoutRoutePoint],
-        strengthSets: [StrengthSetRecord]
+        healthData:
+            WorkoutHealthData,
+        routePoints:
+            [WorkoutRoutePoint],
+        strengthExerciseRecords:
+            [WorkoutExerciseRecord]
     ) -> WorkoutSession {
-        let referenceDate = endDate ?? Date()
+        let referenceDate =
+            endDate ?? Date()
 
-        let elapsedDuration = max(
-            0,
-            referenceDate.timeIntervalSince(startDate)
-        )
-
-        let normalizedActiveDuration = min(
-            max(0, activeDuration),
-            elapsedDuration
-        )
-
-        let timing = WorkoutTiming(
-            startDate: startDate,
-            endDate: endDate,
-            elapsedDuration: elapsedDuration,
-            activeDuration: normalizedActiveDuration,
-            pausedDuration: max(
+        let elapsedDuration =
+            max(
                 0,
-                elapsedDuration - normalizedActiveDuration
+                referenceDate
+                    .timeIntervalSince(
+                        startDate
+                    )
             )
-        )
 
-        let identity = WorkoutIdentity(
-            workoutID: workout.id,
-            name: workout.name,
-            category: workout.category.rawValue,
-            type: workout.type
-        )
+        let normalizedActiveDuration =
+            min(
+                max(
+                    0,
+                    activeDuration
+                ),
+                elapsedDuration
+            )
 
-        let exerciseRecord = WorkoutExerciseRecord(
-            exerciseID: workout.id,
-            name: workout.name,
-            kind: workout.category == .strength
-                ? .strength
-                : .cardio,
-            startDate: startDate,
-            endDate: endDate,
-            strengthSets: workout.category == .strength
-                ? strengthSets
-                : []
-        )
+        let timing =
+            WorkoutTiming(
+                startDate: startDate,
+                endDate: endDate,
+                elapsedDuration:
+                    elapsedDuration,
+                activeDuration:
+                    normalizedActiveDuration,
+                pausedDuration:
+                    max(
+                        0,
+                        elapsedDuration
+                        - normalizedActiveDuration
+                    )
+            )
+
+        let identity =
+            WorkoutIdentity(
+                workoutID:
+                    workout.id,
+                name:
+                    workout.name,
+                category:
+                    workout.category
+                        .rawValue,
+                type:
+                    workout.type
+            )
+
+        let exerciseRecords:
+            [WorkoutExerciseRecord]
+
+        if workout.category
+            == .strength {
+            exerciseRecords =
+                strengthExerciseRecords
+        } else {
+            exerciseRecords = [
+                WorkoutExerciseRecord(
+                    exerciseID:
+                        workout.id,
+                    name:
+                        workout.name,
+                    kind: .cardio,
+                    startDate:
+                        startDate,
+                    endDate:
+                        endDate
+                )
+            ]
+        }
 
         return WorkoutSession(
             id: id,
             workout: identity,
             timing: timing,
-            exerciseRecords: [exerciseRecord],
+            exerciseRecords:
+                exerciseRecords,
             health: healthData,
             route: routePoints
         )

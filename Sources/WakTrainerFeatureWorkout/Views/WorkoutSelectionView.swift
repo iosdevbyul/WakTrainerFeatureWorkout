@@ -265,7 +265,7 @@ private struct WorkoutSelectionRow:
             Image(
                 systemName:
                     workout
-                        .trackingIcon
+                        .launcherSystemImage
             )
             .foregroundStyle(
                 .secondary

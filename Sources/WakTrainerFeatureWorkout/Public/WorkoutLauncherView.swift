@@ -410,10 +410,8 @@ private extension WorkoutLauncherView {
             VStack(spacing: 6) {
                 Image(
                     systemName:
-                        quickWorkoutIcon(
-                            for:
-                                item.workout
-                        )
+                        item.workout
+                            .launcherSystemImage
                 )
                 .font(
                     .system(
@@ -460,16 +458,6 @@ private extension WorkoutLauncherView {
                 radius: 16
             )
         )
-    }
-
-    func quickWorkoutIcon(
-        for workout:
-            WorkoutDefinition
-    ) -> String {
-        workout
-            .requiresLocationTracking
-            ? "location.fill"
-            : "figure.strengthtraining.traditional"
     }
 
     @ViewBuilder
