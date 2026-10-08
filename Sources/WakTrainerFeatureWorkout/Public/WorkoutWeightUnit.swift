@@ -10,6 +10,10 @@ public enum WorkoutWeightUnit: String, Codable, Sendable, CaseIterable {
         }
     }
 
+    public func fromKilograms(_ kilograms: Double?) -> Double? {
+        kilograms.map { fromKilograms($0) }
+    }
+
     public func toKilograms(_ value: Double) -> Double {
         switch self {
         case .kg: value
