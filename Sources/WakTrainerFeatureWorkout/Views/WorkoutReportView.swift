@@ -229,13 +229,17 @@ struct WorkoutReportView: View {
                     )
                 }
 
-                if !viewModel.strengthSets.isEmpty {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Set History")
+                if !viewModel.strengthExerciseRecords.isEmpty {
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text("Exercises")
                             .font(.headline)
 
-                        ForEach(viewModel.strengthSets) { set in
-                            strengthSetRow(set)
+                        ForEach(
+                            viewModel.strengthExerciseRecords
+                        ) { exercise in
+                            strengthExerciseCard(
+                                exercise
+                            )
                         }
                     }
                 }
@@ -528,6 +532,61 @@ struct WorkoutReportView: View {
         }
     }
 
+    private func strengthExerciseCard(
+        _ exercise: WorkoutExerciseRecord
+    ) -> some View {
+        VStack(
+            alignment: .leading,
+            spacing: 10
+        ) {
+            HStack {
+                VStack(
+                    alignment: .leading,
+                    spacing: 2
+                ) {
+                    Text(exercise.name)
+                        .font(.headline)
+
+                    if let equipment =
+                            exercise
+                                .strengthEquipment {
+                        Text(
+                            equipment.displayName
+                        )
+                        .font(.caption)
+                        .foregroundStyle(
+                            .secondary
+                        )
+                    }
+                }
+
+                Spacer()
+
+                Text(
+                    "\(exercise.strengthSets.filter(\\.isCompleted).count) sets"
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            ForEach(
+                exercise.strengthSets
+                    .filter(\\.isCompleted)
+            ) { set in
+                strengthSetRow(set)
+            }
+        }
+        .padding(14)
+        .background(
+            Color.secondary.opacity(0.08)
+        )
+        .clipShape(
+            RoundedRectangle(
+                cornerRadius: 14
+            )
+        )
+    }
+
     private func strengthSetRow(
         _ set: StrengthSetRecord
     ) -> some View {
@@ -568,18 +627,20 @@ struct WorkoutReportView: View {
     private func strengthSetValue(
         _ set: StrengthSetRecord
     ) -> String {
-        let weight = set.weightKilograms.map {
-            String(
-                format: "%.1f",
-                $0
-            )
-        } ?? "-"
-
         let repetitions = set.repetitions.map(
             String.init
         ) ?? "-"
 
-        return "\(weight) kg × \(repetitions)"
+        guard let weight =
+                set.weightKilograms else {
+            return "\(repetitions) reps"
+        }
+
+        return String(
+            format: "%.1f kg × %@",
+            weight,
+            repetitions
+        )
     }
 
     private func formatDuration(
