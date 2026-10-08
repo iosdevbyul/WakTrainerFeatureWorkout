@@ -362,6 +362,7 @@ struct WorkoutSessionViewModelTests {
                 finalHealthData: WorkoutHealthData()
             ),
             locationManager: locationManager,
+            strengthLocationPolicy: .registeredPlace,
             timerManager: TimerManager()
         )
 
@@ -389,6 +390,48 @@ struct WorkoutSessionViewModelTests {
             locationManager.stopTrackingCallCount
                 == 0
         )
+    }
+
+    @Test
+    func unregisteredStrengthWorkoutCapturesLocationOnce() async {
+        let locationManager = MockWorkoutLocationManager()
+        let viewModel = WorkoutSessionViewModel(
+            workout: strengthWorkout,
+            healthKitManager: MockHealthKitManager(
+                snapshot: HealthSnapshot(),
+                finalHealthData: WorkoutHealthData()
+            ),
+            locationManager: locationManager,
+            strengthLocationPolicy: .singleLocation,
+            timerManager: TimerManager()
+        )
+        #expect(viewModel.beginStrengthExercise(squatDefinition, equipment: .barbell))
+        await viewModel.startWorkout()
+        #expect(locationManager.requestLocationPermissionCallCount == 1)
+        #expect(locationManager.startTrackingCallCount == 1)
+        _ = await viewModel.finishWorkout()
+        #expect(locationManager.stopTrackingCallCount == 1)
+    }
+
+    @Test
+    func disabledStrengthLocationSkipsGPS() async {
+        let locationManager = MockWorkoutLocationManager()
+        let viewModel = WorkoutSessionViewModel(
+            workout: strengthWorkout,
+            healthKitManager: MockHealthKitManager(
+                snapshot: HealthSnapshot(),
+                finalHealthData: WorkoutHealthData()
+            ),
+            locationManager: locationManager,
+            strengthLocationPolicy: .disabled,
+            timerManager: TimerManager()
+        )
+        #expect(viewModel.beginStrengthExercise(squatDefinition, equipment: .barbell))
+        await viewModel.startWorkout()
+        _ = await viewModel.finishWorkout()
+        #expect(locationManager.requestLocationPermissionCallCount == 0)
+        #expect(locationManager.startTrackingCallCount == 0)
+        #expect(locationManager.stopTrackingCallCount == 1)
     }
 
     @Test
