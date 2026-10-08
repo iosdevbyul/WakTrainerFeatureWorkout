@@ -202,7 +202,7 @@ struct WorkoutReportView: View {
                     reportMetric(
                         title: "Total Volume",
                         value: formatNumber(
-                            strength.totalVolumeKilograms.map { weightUnit.fromKilograms($0) },
+                            weightUnit.fromKilograms(strength.totalVolumeKilograms),
                             suffix: " \(weightUnit.rawValue)"
                         )
                     )
@@ -210,7 +210,7 @@ struct WorkoutReportView: View {
                     reportMetric(
                         title: "Maximum Weight",
                         value: formatNumber(
-                            strength.maximumWeightKilograms.map { weightUnit.fromKilograms($0) },
+                            weightUnit.fromKilograms(strength.maximumWeightKilograms),
                             suffix: " \(weightUnit.rawValue)"
                         )
                     )
@@ -218,8 +218,8 @@ struct WorkoutReportView: View {
                     reportMetric(
                         title: "Estimated 1RM",
                         value: formatNumber(
-                            strength.bestEstimatedOneRepMaxKilograms,
-                            suffix: " kg",
+                            weightUnit.fromKilograms(strength.bestEstimatedOneRepMaxKilograms),
+                            suffix: " \(weightUnit.rawValue)",
                             decimals: 1
                         )
                     )
