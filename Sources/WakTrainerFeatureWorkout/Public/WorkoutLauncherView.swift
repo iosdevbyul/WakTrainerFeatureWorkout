@@ -494,7 +494,6 @@ private extension WorkoutLauncherView {
                     viewModel
                         .dismissWorkoutFlow()
                 },
-                onWorkoutUpdate: onWorkoutUpdate,
                 onFinished: {
                     session in
                     viewModel
@@ -502,7 +501,8 @@ private extension WorkoutLauncherView {
                     onFinished(
                         session
                     )
-                }
+                },
+                onWorkoutUpdate: onWorkoutUpdate
             )
 
         case .catalog:
@@ -522,7 +522,6 @@ private extension WorkoutLauncherView {
                     viewModel
                         .dismissWorkoutFlow()
                 },
-                onWorkoutUpdate: onWorkoutUpdate,
                 onFinished: {
                     session in
                     viewModel
@@ -530,7 +529,8 @@ private extension WorkoutLauncherView {
                     onFinished(
                         session
                     )
-                }
+                },
+                onWorkoutUpdate: onWorkoutUpdate
             )
 
         case .recovered(
@@ -554,7 +554,6 @@ private extension WorkoutLauncherView {
                     viewModel
                         .dismissWorkoutFlow()
                 },
-                onWorkoutUpdate: onWorkoutUpdate,
                 onFinished: {
                     session in
                     viewModel
@@ -562,7 +561,8 @@ private extension WorkoutLauncherView {
                     onFinished(
                         session
                     )
-                }
+                },
+                onWorkoutUpdate: onWorkoutUpdate
             )
         }
     }
