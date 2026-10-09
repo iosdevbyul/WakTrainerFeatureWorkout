@@ -18,13 +18,15 @@ public struct WorkoutLauncherView: View {
         any WorkoutLauncherPreferenceStore
     private let onFinished:
         (WorkoutSession) -> Void
+    private let onWorkoutUpdate: ((WorkoutLiveSnapshot) -> Void)?
 
     public init(
         maximumHeartRate: Double? = nil,
         weightUnit: WorkoutWeightUnit = .kg,
         strengthLocationPolicy: StrengthWorkoutLocationPolicy = .singleLocation,
         onFinished:
-            @escaping (WorkoutSession) -> Void
+            @escaping (WorkoutSession) -> Void,
+        onWorkoutUpdate: ((WorkoutLiveSnapshot) -> Void)? = nil
     ) {
         let catalogRepository =
             LocalWorkoutCatalogRepository()
@@ -49,6 +51,7 @@ public struct WorkoutLauncherView: View {
             preferenceStore
         self.onFinished =
             onFinished
+        self.onWorkoutUpdate = onWorkoutUpdate
 
         _viewModel = StateObject(
             wrappedValue:
@@ -498,7 +501,8 @@ private extension WorkoutLauncherView {
                     onFinished(
                         session
                     )
-                }
+                },
+                onWorkoutUpdate: onWorkoutUpdate
             )
 
         case .catalog:
@@ -525,7 +529,8 @@ private extension WorkoutLauncherView {
                     onFinished(
                         session
                     )
-                }
+                },
+                onWorkoutUpdate: onWorkoutUpdate
             )
 
         case .recovered(
@@ -556,7 +561,8 @@ private extension WorkoutLauncherView {
                     onFinished(
                         session
                     )
-                }
+                },
+                onWorkoutUpdate: onWorkoutUpdate
             )
         }
     }

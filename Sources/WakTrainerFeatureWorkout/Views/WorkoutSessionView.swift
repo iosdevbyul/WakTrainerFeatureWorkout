@@ -23,6 +23,7 @@ struct WorkoutSessionView: View {
     private let onCancel: () -> Void
     private let onFinished:
         (WorkoutSession) -> Void
+    private let onWorkoutUpdate: ((WorkoutLiveSnapshot) -> Void)?
 
     init(
         workout: WorkoutDefinition,
@@ -35,13 +36,15 @@ struct WorkoutSessionView: View {
         onCancel:
             @escaping () -> Void,
         onFinished:
-            @escaping (WorkoutSession) -> Void
+            @escaping (WorkoutSession) -> Void,
+        onWorkoutUpdate: ((WorkoutLiveSnapshot) -> Void)? = nil
     ) {
         self.workout = workout
         self.weightUnit = weightUnit
         self.strengthLocationPolicy = strengthLocationPolicy
         self.onCancel = onCancel
         self.onFinished = onFinished
+        self.onWorkoutUpdate = onWorkoutUpdate
 
         let resolvedRepository =
             sessionRepository
@@ -82,6 +85,9 @@ struct WorkoutSessionView: View {
             } else {
                 cardioSessionContent
             }
+        }
+        .onChange(of: liveSnapshot, initial: true) { _, snapshot in
+            if let snapshot { onWorkoutUpdate?(snapshot) }
         }
         .toolbar {
             if viewModel.timerState
@@ -130,6 +136,25 @@ struct WorkoutSessionView: View {
                 }
             )
         }
+    }
+
+    private var liveSnapshot: WorkoutLiveSnapshot? {
+        guard viewModel.timerState != .idle else { return nil }
+        let completed = viewModel.completedStrengthExerciseRecords.reduce(0) {
+            $0 + $1.strengthSets.filter(\.isCompleted).count
+        } + viewModel.strengthSets.filter(\.isCompleted).count
+        return WorkoutLiveSnapshot(
+            kind: workout.category == .strength ? .strength : .cardio,
+            phase: viewModel.timerState == .running ? .running : .paused,
+            workoutName: workout.name,
+            elapsedSeconds: viewModel.elapsedTime,
+            heartRateBPM: viewModel.heartRate,
+            activeCalories: viewModel.activeCalories,
+            distanceMeters: viewModel.distanceMeters,
+            steps: viewModel.stepCount,
+            currentExerciseName: viewModel.activeStrengthExercise?.name,
+            completedSets: completed
+        )
     }
 
     // MARK: - Shared Header
