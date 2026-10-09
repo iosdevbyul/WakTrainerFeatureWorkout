@@ -8,7 +8,8 @@ public extension View {
         weightUnit: WorkoutWeightUnit = .kg,
         strengthLocationPolicy: StrengthWorkoutLocationPolicy = .singleLocation,
         bottomPadding: CGFloat = 12,
-        onFinished: @escaping (WorkoutSession) -> Void
+        onFinished: @escaping (WorkoutSession) -> Void,
+        onWorkoutUpdate: ((WorkoutLiveSnapshot) -> Void)? = nil
     ) -> some View {
         overlay(
             alignment: .bottom
@@ -17,7 +18,8 @@ public extension View {
                 maximumHeartRate: maximumHeartRate,
                 weightUnit: weightUnit,
                 strengthLocationPolicy: strengthLocationPolicy,
-                onFinished: onFinished
+                onFinished: onFinished,
+                onWorkoutUpdate: onWorkoutUpdate
             )
             .padding(.horizontal, 16)
             .padding(
