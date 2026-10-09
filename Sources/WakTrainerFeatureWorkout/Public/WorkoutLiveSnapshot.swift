@@ -10,6 +10,7 @@ public struct WorkoutLiveSnapshot: Equatable, Sendable {
     public enum Phase: String, Sendable {
         case running
         case paused
+        case finished
     }
 
     public let kind: Kind
