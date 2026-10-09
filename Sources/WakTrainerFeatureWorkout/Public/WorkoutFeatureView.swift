@@ -32,13 +32,15 @@ public struct WorkoutFeatureView: View {
         (() -> Void)?
     private let onFinished:
         (WorkoutSession) -> Void
+    private let onWorkoutUpdate: ((WorkoutLiveSnapshot) -> Void)?
 
     public init(
         maximumHeartRate: Double? = nil,
         weightUnit: WorkoutWeightUnit = .kg,
         strengthLocationPolicy: StrengthWorkoutLocationPolicy = .singleLocation,
         onFinished:
-            @escaping (WorkoutSession) -> Void
+            @escaping (WorkoutSession) -> Void,
+        onWorkoutUpdate: ((WorkoutLiveSnapshot) -> Void)? = nil
     ) {
         self.init(
             initialWorkout: nil,
@@ -53,7 +55,8 @@ public struct WorkoutFeatureView: View {
             strengthLocationPolicy: strengthLocationPolicy,
             onCancelled: nil,
             onFinished:
-                onFinished
+                onFinished,
+            onWorkoutUpdate: onWorkoutUpdate
         )
     }
 
@@ -75,7 +78,8 @@ public struct WorkoutFeatureView: View {
         onCancelled:
             (() -> Void)? = nil,
         onFinished:
-            @escaping (WorkoutSession) -> Void
+            @escaping (WorkoutSession) -> Void,
+        onWorkoutUpdate: ((WorkoutLiveSnapshot) -> Void)? = nil
     ) {
         let repository =
             LocalWorkoutCatalogRepository()
@@ -103,6 +107,7 @@ public struct WorkoutFeatureView: View {
             onCancelled
         self.onFinished =
             onFinished
+        self.onWorkoutUpdate = onWorkoutUpdate
 
         _coordinator = StateObject(
             wrappedValue:
@@ -161,6 +166,7 @@ public struct WorkoutFeatureView: View {
                             .returnToSelection()
                     }
                 },
+                onWorkoutUpdate: onWorkoutUpdate,
                 onFinished: {
                     session in
                     coordinator
