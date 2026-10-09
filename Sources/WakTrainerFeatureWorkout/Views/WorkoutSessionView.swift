@@ -592,6 +592,22 @@ struct WorkoutSessionView: View {
                         let session =
                             await viewModel
                                 .finishWorkout()
+                        if let onWorkoutUpdate {
+                            onWorkoutUpdate(
+                                WorkoutLiveSnapshot(
+                                    kind: workout.category == .strength ? .strength : .cardio,
+                                    phase: .finished,
+                                    workoutName: workout.name,
+                                    elapsedSeconds: session.timing.activeDuration,
+                                    heartRateBPM: viewModel.heartRate,
+                                    activeCalories: viewModel.activeCalories,
+                                    distanceMeters: viewModel.distanceMeters,
+                                    steps: viewModel.stepCount,
+                                    currentExerciseName: viewModel.activeStrengthExercise?.name,
+                                    completedSets: viewModel.strengthSets.count
+                                )
+                            )
+                        }
                         onFinished(
                             session
                         )
