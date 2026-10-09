@@ -166,14 +166,14 @@ public struct WorkoutFeatureView: View {
                             .returnToSelection()
                     }
                 },
-                onWorkoutUpdate: onWorkoutUpdate,
                 onFinished: {
                     session in
                     coordinator
                         .finishWorkout(
                             session
                         )
-                }
+                },
+                onWorkoutUpdate: onWorkoutUpdate
             )
 
         case .completion(
