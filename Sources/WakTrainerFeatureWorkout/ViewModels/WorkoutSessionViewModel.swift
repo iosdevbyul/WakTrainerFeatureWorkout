@@ -346,11 +346,6 @@ final class WorkoutSessionViewModel: ObservableObject {
                 endDate: endDate
             )
 
-        let liveActiveCalories =
-            activeCalories
-        let liveStepCount = stepCount
-        let liveDistance = distanceMeters
-
         await stopWorkout()
 
         let healthData: WorkoutHealthData
@@ -359,27 +354,8 @@ final class WorkoutSessionViewModel: ObservableObject {
             if let recoveryResumeDate {
                 let resumedHealthData =
                     await collectFinalHealthData(
-                        from:
-                            recoveryResumeDate,
-                        to: endDate,
-                        liveActiveCalories:
-                            max(
-                                0,
-                                liveActiveCalories
-                                - recoveredActiveCaloriesBase
-                            ),
-                        liveStepCount:
-                            max(
-                                0,
-                                liveStepCount
-                                - recoveredStepCountBase
-                            ),
-                        liveDistance:
-                            max(
-                                0,
-                                liveDistance
-                                - recoveredDistanceBase
-                            )
+                        from: recoveryResumeDate,
+                        to: endDate
                     )
 
                 healthData =
@@ -396,13 +372,7 @@ final class WorkoutSessionViewModel: ObservableObject {
             healthData =
                 await collectFinalHealthData(
                     from: startDate,
-                    to: endDate,
-                    liveActiveCalories:
-                        liveActiveCalories,
-                    liveStepCount:
-                        liveStepCount,
-                    liveDistance:
-                        liveDistance
+                    to: endDate
                 )
         }
 
@@ -949,51 +919,16 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     private func collectFinalHealthData(
         from startDate: Date,
-        to endDate: Date,
-        liveActiveCalories: Double,
-        liveStepCount: Double,
-        liveDistance: Double
+        to endDate: Date
     ) async -> WorkoutHealthData {
         do {
-            var healthData =
-                try await healthKitManager
-                    .fetchWorkoutHealthData(
-                        from: startDate,
-                        to: endDate
-                    )
-
-            mergeLiveTotals(
-                into: &healthData,
-                activeCalories:
-                    liveActiveCalories,
-                stepCount:
-                    liveStepCount,
-                distance:
-                    liveDistance
+            return try await healthKitManager.fetchWorkoutHealthData(
+                from: startDate,
+                to: endDate
             )
-
-            return healthData
         } catch {
-            healthDataCollectionError =
-                error.localizedDescription
-
-            return WorkoutHealthData(
-                summary:
-                    WorkoutHealthSummary(
-                        activeCalories:
-                            nonZero(
-                                liveActiveCalories
-                            ),
-                        stepCount:
-                            nonZero(
-                                liveStepCount
-                            ),
-                        distanceMeters:
-                            nonZero(
-                                liveDistance
-                            )
-                    )
-            )
+            healthDataCollectionError = error.localizedDescription
+            return WorkoutHealthData()
         }
     }
 
@@ -1007,26 +942,20 @@ final class WorkoutSessionViewModel: ObservableObject {
         let previous =
             recovered.summary
 
-        merged.summary.activeCalories =
-            (previous.activeCalories
-             ?? 0)
-            + (resumed.summary
-                .activeCalories
-               ?? 0)
+        merged.summary.activeCalories = sumOptional(
+            previous.activeCalories,
+            resumed.summary.activeCalories
+        )
 
-        merged.summary.stepCount =
-            (previous.stepCount
-             ?? 0)
-            + (resumed.summary
-                .stepCount
-               ?? 0)
+        merged.summary.stepCount = sumOptional(
+            previous.stepCount,
+            resumed.summary.stepCount
+        )
 
-        merged.summary.distanceMeters =
-            (previous.distanceMeters
-             ?? 0)
-            + (resumed.summary
-                .distanceMeters
-               ?? 0)
+        merged.summary.distanceMeters = sumOptional(
+            previous.distanceMeters,
+            resumed.summary.distanceMeters
+        )
 
         if merged.summary
             .averageHeartRate == nil {
@@ -1059,6 +988,16 @@ final class WorkoutSessionViewModel: ObservableObject {
             + resumed.samples
 
         return merged
+    }
+
+    private func sumOptional(
+        _ lhs: Double?,
+        _ rhs: Double?
+    ) -> Double? {
+        guard lhs != nil || rhs != nil else {
+            return nil
+        }
+        return (lhs ?? 0) + (rhs ?? 0)
     }
 
     private func minimumOptional(
@@ -1110,41 +1049,6 @@ final class WorkoutSessionViewModel: ObservableObject {
 
         case (.none, .none):
             nil
-        }
-    }
-
-    private func mergeLiveTotals(
-        into healthData:
-            inout WorkoutHealthData,
-        activeCalories: Double,
-        stepCount: Double,
-        distance: Double
-    ) {
-        if healthData.summary
-            .activeCalories == nil {
-            healthData.summary
-                .activeCalories =
-                nonZero(
-                    activeCalories
-                )
-        }
-
-        if healthData.summary
-            .stepCount == nil {
-            healthData.summary
-                .stepCount =
-                nonZero(
-                    stepCount
-                )
-        }
-
-        if healthData.summary
-            .distanceMeters == nil {
-            healthData.summary
-                .distanceMeters =
-                nonZero(
-                    distance
-                )
         }
     }
 

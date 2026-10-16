@@ -526,18 +526,11 @@ struct WorkoutSessionViewModelTests {
             session.workout.workoutID
                 == "walking"
         )
-        #expect(
-            session.health.summary.activeCalories
-                == 42
-        )
-        #expect(
-            session.health.summary.stepCount
-                == 300
-        )
-        #expect(
-            session.health.summary.distanceMeters
-                == 700
-        )
+        #expect(session.health.summary.activeCalories == nil)
+        #expect(session.health.summary.stepCount == nil)
+        #expect(session.health.summary.distanceMeters == nil)
+        #expect(session.health.summary.averageHeartRate == nil)
+        #expect(session.health.samples.isEmpty)
         #expect(
             viewModel.healthDataCollectionError
                 != nil
