@@ -962,38 +962,12 @@ final class WorkoutSessionViewModel: ObservableObject {
                         to: endDate
                     )
 
-            mergeLiveTotals(
-                into: &healthData,
-                activeCalories:
-                    liveActiveCalories,
-                stepCount:
-                    liveStepCount,
-                distance:
-                    liveDistance
-            )
-
             return healthData
         } catch {
             healthDataCollectionError =
                 error.localizedDescription
 
-            return WorkoutHealthData(
-                summary:
-                    WorkoutHealthSummary(
-                        activeCalories:
-                            nonZero(
-                                liveActiveCalories
-                            ),
-                        stepCount:
-                            nonZero(
-                                liveStepCount
-                            ),
-                        distanceMeters:
-                            nonZero(
-                                liveDistance
-                            )
-                    )
-            )
+            return WorkoutHealthData()
         }
     }
 
@@ -1110,41 +1084,6 @@ final class WorkoutSessionViewModel: ObservableObject {
 
         case (.none, .none):
             nil
-        }
-    }
-
-    private func mergeLiveTotals(
-        into healthData:
-            inout WorkoutHealthData,
-        activeCalories: Double,
-        stepCount: Double,
-        distance: Double
-    ) {
-        if healthData.summary
-            .activeCalories == nil {
-            healthData.summary
-                .activeCalories =
-                nonZero(
-                    activeCalories
-                )
-        }
-
-        if healthData.summary
-            .stepCount == nil {
-            healthData.summary
-                .stepCount =
-                nonZero(
-                    stepCount
-                )
-        }
-
-        if healthData.summary
-            .distanceMeters == nil {
-            healthData.summary
-                .distanceMeters =
-                nonZero(
-                    distance
-                )
         }
     }
 
