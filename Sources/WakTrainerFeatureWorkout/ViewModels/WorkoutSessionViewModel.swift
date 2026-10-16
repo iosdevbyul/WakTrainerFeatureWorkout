@@ -346,11 +346,6 @@ final class WorkoutSessionViewModel: ObservableObject {
                 endDate: endDate
             )
 
-        let liveActiveCalories =
-            activeCalories
-        let liveStepCount = stepCount
-        let liveDistance = distanceMeters
-
         await stopWorkout()
 
         let healthData: WorkoutHealthData
@@ -359,27 +354,8 @@ final class WorkoutSessionViewModel: ObservableObject {
             if let recoveryResumeDate {
                 let resumedHealthData =
                     await collectFinalHealthData(
-                        from:
-                            recoveryResumeDate,
-                        to: endDate,
-                        liveActiveCalories:
-                            max(
-                                0,
-                                liveActiveCalories
-                                - recoveredActiveCaloriesBase
-                            ),
-                        liveStepCount:
-                            max(
-                                0,
-                                liveStepCount
-                                - recoveredStepCountBase
-                            ),
-                        liveDistance:
-                            max(
-                                0,
-                                liveDistance
-                                - recoveredDistanceBase
-                            )
+                        from: recoveryResumeDate,
+                        to: endDate
                     )
 
                 healthData =
@@ -396,13 +372,7 @@ final class WorkoutSessionViewModel: ObservableObject {
             healthData =
                 await collectFinalHealthData(
                     from: startDate,
-                    to: endDate,
-                    liveActiveCalories:
-                        liveActiveCalories,
-                    liveStepCount:
-                        liveStepCount,
-                    liveDistance:
-                        liveDistance
+                    to: endDate
                 )
         }
 
@@ -949,24 +919,15 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     private func collectFinalHealthData(
         from startDate: Date,
-        to endDate: Date,
-        liveActiveCalories: Double,
-        liveStepCount: Double,
-        liveDistance: Double
+        to endDate: Date
     ) async -> WorkoutHealthData {
         do {
-            var healthData =
-                try await healthKitManager
-                    .fetchWorkoutHealthData(
-                        from: startDate,
-                        to: endDate
-                    )
-
-            return healthData
+            return try await healthKitManager.fetchWorkoutHealthData(
+                from: startDate,
+                to: endDate
+            )
         } catch {
-            healthDataCollectionError =
-                error.localizedDescription
-
+            healthDataCollectionError = error.localizedDescription
             return WorkoutHealthData()
         }
     }
