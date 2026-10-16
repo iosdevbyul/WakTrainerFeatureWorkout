@@ -942,26 +942,20 @@ final class WorkoutSessionViewModel: ObservableObject {
         let previous =
             recovered.summary
 
-        merged.summary.activeCalories =
-            (previous.activeCalories
-             ?? 0)
-            + (resumed.summary
-                .activeCalories
-               ?? 0)
+        merged.summary.activeCalories = sumOptional(
+            previous.activeCalories,
+            resumed.summary.activeCalories
+        )
 
-        merged.summary.stepCount =
-            (previous.stepCount
-             ?? 0)
-            + (resumed.summary
-                .stepCount
-               ?? 0)
+        merged.summary.stepCount = sumOptional(
+            previous.stepCount,
+            resumed.summary.stepCount
+        )
 
-        merged.summary.distanceMeters =
-            (previous.distanceMeters
-             ?? 0)
-            + (resumed.summary
-                .distanceMeters
-               ?? 0)
+        merged.summary.distanceMeters = sumOptional(
+            previous.distanceMeters,
+            resumed.summary.distanceMeters
+        )
 
         if merged.summary
             .averageHeartRate == nil {
@@ -994,6 +988,16 @@ final class WorkoutSessionViewModel: ObservableObject {
             + resumed.samples
 
         return merged
+    }
+
+    private func sumOptional(
+        _ lhs: Double?,
+        _ rhs: Double?
+    ) -> Double? {
+        guard lhs != nil || rhs != nil else {
+            return nil
+        }
+        return (lhs ?? 0) + (rhs ?? 0)
     }
 
     private func minimumOptional(
