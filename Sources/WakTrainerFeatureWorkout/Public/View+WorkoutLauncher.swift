@@ -8,6 +8,7 @@ public extension View {
         weightUnit: WorkoutWeightUnit = .kg,
         strengthLocationPolicy: StrengthWorkoutLocationPolicy = .singleLocation,
         bottomPadding: CGFloat = 12,
+        ownerUserID: UUID? = nil,
         onFinished: @escaping (WorkoutSession) -> Void,
         onWorkoutUpdate: ((WorkoutLiveSnapshot) -> Void)? = nil
     ) -> some View {
@@ -18,6 +19,7 @@ public extension View {
                 maximumHeartRate: maximumHeartRate,
                 weightUnit: weightUnit,
                 strengthLocationPolicy: strengthLocationPolicy,
+                ownerUserID: ownerUserID,
                 onFinished: onFinished,
                 onWorkoutUpdate: onWorkoutUpdate
             )
