@@ -24,6 +24,7 @@ public struct WorkoutLauncherView: View {
         maximumHeartRate: Double? = nil,
         weightUnit: WorkoutWeightUnit = .kg,
         strengthLocationPolicy: StrengthWorkoutLocationPolicy = .singleLocation,
+        ownerUserID: UUID? = nil,
         onFinished:
             @escaping (WorkoutSession) -> Void,
         onWorkoutUpdate: ((WorkoutLiveSnapshot) -> Void)? = nil
@@ -37,7 +38,7 @@ public struct WorkoutLauncherView: View {
             )
         let sessionRepository =
             try?
-            SwiftDataWorkoutSessionRepository()
+            SwiftDataWorkoutSessionRepository(ownerUserID: ownerUserID)
         let preferenceStore =
             UserDefaultsWorkoutLauncherPreferenceStore()
 

@@ -14,10 +14,11 @@ public final class WorkoutServerSync {
 
     public init(
         baseURL: URL,
+        ownerUserID: UUID,
         accessToken: @escaping () -> String?,
         session: URLSession = .shared
     ) throws {
-        self.repository = try SwiftDataWorkoutSessionRepository()
+        self.repository = try SwiftDataWorkoutSessionRepository(ownerUserID: ownerUserID)
         self.baseURL = baseURL
         self.accessToken = accessToken
         self.session = session
