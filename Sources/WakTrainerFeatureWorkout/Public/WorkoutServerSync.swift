@@ -58,7 +58,7 @@ public final class WorkoutServerSync {
                 .appendingPathComponent(workout.id.uuidString)
         )
         request.httpMethod = "PUT"
-        request.setValue("Bearer \\(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try JSONEncoder().encode(workout)
 
