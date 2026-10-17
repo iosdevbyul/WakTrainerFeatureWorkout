@@ -20,10 +20,10 @@ public final class WorkoutHistoryStore: ObservableObject {
     private let repositoryProvider:
         () throws -> any WorkoutSessionRepository
 
-    public convenience init() {
+    public convenience init(ownerUserID: UUID? = nil) {
         self.init(
             repositoryProvider: {
-                try SwiftDataWorkoutSessionRepository()
+                try SwiftDataWorkoutSessionRepository(ownerUserID: ownerUserID)
             }
         )
     }
