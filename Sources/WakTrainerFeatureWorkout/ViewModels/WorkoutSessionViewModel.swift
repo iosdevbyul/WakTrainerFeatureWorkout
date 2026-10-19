@@ -122,6 +122,15 @@ final class WorkoutSessionViewModel: ObservableObject {
     // MARK: - Private
 
     private var healthTask: Task<Void, Never>?
+    private var simulationTask: Task<Void, Never>?
+    private var simulator = DebugWorkoutSimulator()
+    private var useSimulation: Bool {
+#if DEBUG && targetEnvironment(simulator)
+        UserDefaults.standard.bool(forKey: "WakTrainer.debug.simulateWorkout")
+#else
+        false
+#endif
+    }
     private var checkpointTask: Task<Void, Never>?
 
     private static let checkpointIntervalNanoseconds: UInt64 =
@@ -169,6 +178,7 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     deinit {
         healthTask?.cancel()
+        simulationTask?.cancel()
         checkpointTask?.cancel()
         snapshotTimeoutTask?.cancel()
     }
@@ -250,12 +260,12 @@ final class WorkoutSessionViewModel: ObservableObject {
         resetSessionStateForNewWorkout()
         sessionID = UUID()
 
-        _ = try? await healthKitManager
-            .requestAuthorization()
+        if !useSimulation {
+            _ = try? await healthKitManager.requestAuthorization()
+        }
 
-        if workout.requiresLocationTracking {
-            locationManager?
-                .requestLocationPermission()
+        if workout.requiresLocationTracking && !useSimulation {
+            locationManager?.requestLocationPermission()
         }
 
         let startDate = Date()
@@ -268,9 +278,9 @@ final class WorkoutSessionViewModel: ObservableObject {
 
         timerManager.start()
 
-        if workout.requiresLocationTracking {
+        if workout.requiresLocationTracking && !useSimulation {
             locationManager?.startTracking()
-        } else if workout.category == .strength,
+        } else if !useSimulation && workout.category == .strength,
                   strengthLocationPolicy == .singleLocation {
             didCaptureStrengthLocation = false
             locationManager?.requestLocationPermission()
@@ -283,7 +293,12 @@ final class WorkoutSessionViewModel: ObservableObject {
             }
         }
 
-        startHealthObservation()
+        if useSimulation {
+            simulator = DebugWorkoutSimulator()
+            startSimulation()
+        } else {
+            startHealthObservation()
+        }
         await saveCheckpoint()
         startCheckpointLoop()
     }
@@ -291,6 +306,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     func pauseWorkout() {
         guard timerState == .running else { return }
         timerManager.pause()
+        simulationTask?.cancel()
         if workout.requiresLocationTracking { locationManager?.stopTracking() }
 
         if isResting {
@@ -313,13 +329,14 @@ final class WorkoutSessionViewModel: ObservableObject {
                     .startTracking()
             }
 
-            startHealthObservation()
+            if useSimulation { startSimulation() } else { startHealthObservation() }
             startCheckpointLoop()
             needsRuntimeRestart = false
         }
 
         timerManager.start()
-        if workout.requiresLocationTracking { locationManager?.startTracking() }
+        if workout.requiresLocationTracking && !useSimulation { locationManager?.startTracking() }
+        if useSimulation { startSimulation() }
 
         if isResting {
             restTimerManager.start()
@@ -350,7 +367,9 @@ final class WorkoutSessionViewModel: ObservableObject {
 
         let healthData: WorkoutHealthData
 
-        if let recoveredHealthData {
+        if useSimulation {
+            healthData = simulator.health
+        } else if let recoveredHealthData {
             if let recoveryResumeDate {
                 let resumedHealthData =
                     await collectFinalHealthData(
@@ -417,6 +436,8 @@ final class WorkoutSessionViewModel: ObservableObject {
 
         healthTask?.cancel()
         healthTask = nil
+        simulationTask?.cancel()
+        simulationTask = nil
 
         await healthKitManager
             .stopObservingData()
@@ -656,6 +677,43 @@ final class WorkoutSessionViewModel: ObservableObject {
         activeStrengthExerciseStartDate = nil
     }
 
+    // MARK: - Simulator-only measurements
+
+    private func startSimulation() {
+        simulationTask?.cancel()
+        simulationTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                guard let self, !Task.isCancelled else { return }
+                guard self.timerState == .running else { continue }
+                self.simulator.advance(
+                    at: Date(), category: self.workout.category.rawValue,
+                    workoutID: self.workout.id
+                )
+                self.heartRate = self.simulator.heartRate
+                self.activeCalories = self.simulator.calories
+                self.stepCount = self.simulator.steps
+                self.distanceMeters = self.simulator.distance
+                self.routePoints = self.simulator.route
+                self.routeCoordinates = self.simulator.route.map(\.coordinate)
+
+                // Populate actual exercise records through the existing set recorder.
+                // A selected strength exercise is required by the production UI.
+                if self.workout.category == .strength,
+                   Int(self.simulator.seconds) % 25 == 0 {
+                    if self.isResting {
+                        _ = self.finishRestAndStartNextSet()
+                    } else if let equipment = self.activeStrengthEquipment {
+                        _ = self.recordStrengthSet(
+                            weightKilograms: equipment.requiresWeightInput ? 20 : nil,
+                            repetitions: 10
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Checkpoint Persistence
 
     private func startCheckpointLoop() {
@@ -691,8 +749,7 @@ final class WorkoutSessionViewModel: ObservableObject {
             return
         }
 
-        let liveHealthData =
-            WorkoutHealthData(
+        let liveHealthData = useSimulation ? simulator.health : WorkoutHealthData(
                 summary:
                     WorkoutHealthSummary(
                         averageHeartRate:
