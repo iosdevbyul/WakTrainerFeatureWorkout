@@ -25,7 +25,7 @@ let package = Package(
         ),
         .package(
             url: "https://github.com/iosdevbyul/WakTrainerServiceLocation",
-            branch: "main"
+            branch: "feat/workout-map-direction-tracking"
         ),
         .package(
             url: "https://github.com/iosdevbyul/WakTrainerServiceHealthKit",
