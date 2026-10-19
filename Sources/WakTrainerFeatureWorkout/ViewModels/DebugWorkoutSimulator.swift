@@ -11,7 +11,7 @@ struct DebugWorkoutSimulator {
     private(set) var calories: Double = 0
     private(set) var steps: Double = 0
     private(set) var distance: Double = 0
-    private var seconds: Double = 0
+    private(set) var seconds: Double = 0
 
     mutating func advance(at date: Date, category: String, workoutID: String) {
         seconds += 1
@@ -42,7 +42,7 @@ struct DebugWorkoutSimulator {
         if !strength {
             add(cycling ? .distanceCycling : .distanceWalkingRunning, speed, "m")
         }
-        if speed > 0 {
+        if speed > 0 && !workoutID.contains("indoor") {
             // A smooth synthetic eastward path, not real device location.
             let eastMeters = distance
             let latitude = 37.5665 + sin(seconds / 120) * 0.00015
@@ -62,8 +62,8 @@ struct DebugWorkoutSimulator {
                 minimumHeartRate: hrs.min(),
                 maximumHeartRate: hrs.max(),
                 activeCalories: calories,
-                stepCount: steps,
-                distanceMeters: distance
+                stepCount: steps > 0 ? steps : nil,
+                distanceMeters: distance > 0 ? distance : nil
             ),
             samples: samples
         )
