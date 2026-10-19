@@ -696,6 +696,20 @@ final class WorkoutSessionViewModel: ObservableObject {
                 self.distanceMeters = self.simulator.distance
                 self.routePoints = self.simulator.route
                 self.routeCoordinates = self.simulator.route.map(\.coordinate)
+
+                // Populate actual exercise records through the existing set recorder.
+                // A selected strength exercise is required by the production UI.
+                if self.workout.category == .strength,
+                   Int(self.simulator.seconds) % 25 == 0 {
+                    if self.isResting {
+                        _ = self.finishRestAndStartNextSet()
+                    } else if let equipment = self.activeStrengthEquipment {
+                        _ = self.recordStrengthSet(
+                            weightKilograms: equipment.requiresWeightInput ? 20 : nil,
+                            repetitions: 10
+                        )
+                    }
+                }
             }
         }
     }
