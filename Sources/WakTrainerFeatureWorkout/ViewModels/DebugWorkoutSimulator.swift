@@ -22,8 +22,10 @@ struct DebugWorkoutSimulator {
         let targetHR = strength ? 125.0 : walking ? 112.0 : cycling ? 140.0 : 150.0
         let variation = sin(seconds / 8) * 6 + sin(seconds / 17) * 3
         heartRate = min(185, max(65, 85 + (targetHR - 85) * min(seconds / 45, 1) + variation))
-        calories += strength ? 0.11 : walking ? 0.07 : cycling ? 0.14 : 0.17
-        steps += strength || cycling ? 0 : walking ? 1.7 : 2.8
+        let calorieIncrement = strength ? 0.11 : walking ? 0.07 : cycling ? 0.14 : 0.17
+        let stepIncrement = strength || cycling ? 0 : walking ? 1.7 : 2.8
+        calories += calorieIncrement
+        steps += stepIncrement
         distance += speed
 
         func add(_ metric: WorkoutHealthMetric, _ value: Double, _ unit: String) {
@@ -35,10 +37,10 @@ struct DebugWorkoutSimulator {
             ))
         }
         add(.heartRate, heartRate, "count/min")
-        add(.activeEnergyBurned, calories, "kcal")
-        if !strength && !cycling { add(.stepCount, steps, "count") }
+        add(.activeEnergyBurned, calorieIncrement, "kcal")
+        if !strength && !cycling { add(.stepCount, stepIncrement, "count") }
         if !strength {
-            add(cycling ? .distanceCycling : .distanceWalkingRunning, distance, "m")
+            add(cycling ? .distanceCycling : .distanceWalkingRunning, speed, "m")
         }
         if speed > 0 {
             // A smooth synthetic eastward path, not real device location.
