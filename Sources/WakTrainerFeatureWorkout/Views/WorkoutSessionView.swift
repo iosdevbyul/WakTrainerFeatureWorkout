@@ -506,7 +506,8 @@ struct WorkoutSessionView: View {
                 workoutType:
                     workout.type,
                 paceSegments:
-                    currentPaceSegments
+                    currentPaceSegments,
+                followsCurrentPosition: true
             )
             .ignoresSafeArea()
         } else {
