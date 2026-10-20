@@ -6,7 +6,7 @@
       "location": "https://github.com/iosdevbyul/WakTrainerCoreModels",
       "state": {
         "branch": "main",
-        "revision": "a19ca9d53b7b395b3c41efbbcc9883c53a672832"
+        "revision": "7ba702c72e152ebc663869ab67aa02d69f611a99"
       }
     },
     {
@@ -15,7 +15,7 @@
       "location": "https://github.com/iosdevbyul/WakTrainerDomainWorkout",
       "state": {
         "branch": "main",
-        "revision": "c8d605a70e8abff876ebd7acf4b7593fc095dc2f"
+        "revision": "1609e20730b6ddd469a09f18cfb6138864882c25"
       }
     },
     {
@@ -33,7 +33,7 @@
       "location": "https://github.com/iosdevbyul/WakTrainerServiceHealthKit",
       "state": {
         "branch": "main",
-        "revision": "e09d9a718a6d86b99a9ec0a7a88aa7c0169c7cb4"
+        "revision": "557cdc1a51a245cb15e936c97f2f260d53c86e98"
       }
     },
     {
@@ -42,7 +42,7 @@
       "location": "https://github.com/iosdevbyul/WakTrainerServiceLocation",
       "state": {
         "branch": "main",
-        "revision": "30882d62cf80ee380fb641e3456a442712f55beb"
+        "revision": "addd795d10fff232332d34338546be12b5838758"
       }
     },
     {
@@ -51,7 +51,7 @@
       "location": "https://github.com/iosdevbyul/WakTrainerServiceWorkoutStorage",
       "state": {
         "branch": "main",
-        "revision": "e78d0a6fd6cbfa634dad3c9270d7abc6d851a649"
+        "revision": "c57e45c8fec8e78a25c66c90c7ded2d5b10aed21"
       }
     }
   ],
