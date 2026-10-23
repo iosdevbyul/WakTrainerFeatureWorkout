@@ -39,10 +39,15 @@ public final class WorkoutServerSync {
             if Task.isCancelled { return }
             do {
                 try await upload(stored.session, token: token)
+                try Task.checkCancellation()
                 try await repository.updateSyncState(
                     for: stored.session.id, to: .synced
                 )
+            } catch is CancellationError {
+                // Retain the pending record for a future explicit retry.
+                return
             } catch {
+                if Task.isCancelled { return }
                 try? await repository.updateSyncState(
                     for: stored.session.id, to: .failed
                 )
