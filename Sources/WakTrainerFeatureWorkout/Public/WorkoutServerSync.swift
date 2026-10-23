@@ -47,6 +47,7 @@ public final class WorkoutServerSync {
                 // Retain the pending record for a future explicit retry.
                 return
             } catch {
+                if Task.isCancelled { return }
                 try? await repository.updateSyncState(
                     for: stored.session.id, to: .failed
                 )
