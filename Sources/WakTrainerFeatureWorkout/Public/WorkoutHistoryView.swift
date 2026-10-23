@@ -19,10 +19,11 @@ public struct WorkoutHistoryView: View {
 
     public init(
         selectedDate: Date? = nil,
-        maximumHeartRate: Double? = nil
+        maximumHeartRate: Double? = nil,
+        ownerUserID: UUID? = nil
     ) {
         let repository =
-            try? SwiftDataWorkoutSessionRepository()
+            try? SwiftDataWorkoutSessionRepository(ownerUserID: ownerUserID)
 
         self.init(
             selectedDate: selectedDate,
