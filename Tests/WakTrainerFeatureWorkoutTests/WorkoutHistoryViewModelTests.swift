@@ -87,6 +87,62 @@ struct WorkoutHistoryViewModelTests {
         #expect(viewModel.errorMessage == nil)
     }
 
+    @Test("selected day follows viewer timezone without rewriting session timestamp")
+    func selectedDayFollowsViewerTimezone() async throws {
+        let instant = try #require(
+            ISO8601DateFormatter().date(from: "2026-10-24T23:00:00Z")
+        )
+        let seoul = try #require(TimeZone(identifier: "Asia/Seoul"))
+        let vancouver = try #require(TimeZone(identifier: "America/Vancouver"))
+        var koreanCalendar = Calendar(identifier: .gregorian)
+        koreanCalendar.timeZone = seoul
+        var canadianCalendar = Calendar(identifier: .gregorian)
+        canadianCalendar.timeZone = vancouver
+
+        let workout = makeStoredSession(startedAt: instant)
+        let repository = HistoryMockWorkoutSessionRepository(allSessions: [workout])
+        let viewModel = WorkoutHistoryViewModel(sessionRepository: repository)
+
+        await viewModel.load(selectedDate: instant, calendar: koreanCalendar)
+        #expect(viewModel.sessions == [workout])
+
+        let koreanDay = koreanCalendar.startOfDay(for: instant)
+        await viewModel.load(selectedDate: koreanDay, calendar: canadianCalendar)
+        #expect(viewModel.sessions.isEmpty)
+
+        let canadianDay = canadianCalendar.startOfDay(for: instant)
+        await viewModel.load(selectedDate: canadianDay, calendar: canadianCalendar)
+        #expect(viewModel.sessions == [workout])
+        #expect(viewModel.sessions.first?.session.timing.startDate == instant)
+    }
+
+    @Test("selected day uses DST-aware calendar boundaries")
+    func selectedDayUsesDSTBoundaries() async throws {
+        let zone = try #require(TimeZone(identifier: "America/Vancouver"))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = zone
+        let selectedDay = try #require(calendar.date(
+            from: DateComponents(year: 2026, month: 3, day: 8)
+        ))
+        let nextDay = try #require(calendar.date(
+            byAdding: .day, value: 1, to: selectedDay
+        ))
+        #expect(nextDay.timeIntervalSince(selectedDay) == 23 * 3600)
+
+        let inside = makeStoredSession(
+            startedAt: nextDay.addingTimeInterval(-60)
+        )
+        let outside = makeStoredSession(
+            id: UUID(), startedAt: nextDay
+        )
+        let repository = HistoryMockWorkoutSessionRepository(
+            allSessions: [inside, outside]
+        )
+        let viewModel = WorkoutHistoryViewModel(sessionRepository: repository)
+        await viewModel.load(selectedDate: selectedDay, calendar: calendar)
+        #expect(viewModel.sessions == [inside])
+    }
+
     @Test("all history keeps completed sessions and orders newest first")
     func allHistoryFiltersAndSorts() async {
         let older = makeStoredSession(
