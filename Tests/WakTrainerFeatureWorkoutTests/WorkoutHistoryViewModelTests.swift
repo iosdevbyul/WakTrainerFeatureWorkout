@@ -106,8 +106,12 @@ struct WorkoutHistoryViewModelTests {
         await viewModel.load(selectedDate: instant, calendar: koreanCalendar)
         #expect(viewModel.sessions == [workout])
 
-        let koreanDay = koreanCalendar.startOfDay(for: instant)
-        await viewModel.load(selectedDate: koreanDay, calendar: canadianCalendar)
+        let nextCanadianDay = try #require(canadianCalendar.date(
+            byAdding: .day,
+            value: 1,
+            to: canadianCalendar.startOfDay(for: instant)
+        ))
+        await viewModel.load(selectedDate: nextCanadianDay, calendar: canadianCalendar)
         #expect(viewModel.sessions.isEmpty)
 
         let canadianDay = canadianCalendar.startOfDay(for: instant)
