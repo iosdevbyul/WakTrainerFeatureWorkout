@@ -68,6 +68,7 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     // MARK: - Health Data
 
+    @Published private(set) var healthSampleEndDates: [WorkoutHealthMetric: Date] = [:]
     @Published private(set) var heartRate: Double = 0
     @Published private(set) var activeCalories: Double = 0
     @Published private(set) var stepCount: Double = 0
@@ -667,6 +668,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     private func resetSessionStateForNewWorkout() {
         healthDataCollectionError = nil
         storageError = nil
+        healthSampleEndDates = [:]
 
         restTimerManager.stop()
         isResting = false
@@ -956,6 +958,7 @@ final class WorkoutSessionViewModel: ObservableObject {
                     break
                 }
 
+                self.healthSampleEndDates = snapshot.sampleEndDates
                 self.heartRate =
                     snapshot.heartRate
                 self.activeCalories =
