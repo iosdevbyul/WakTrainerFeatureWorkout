@@ -62,6 +62,31 @@ struct WorkoutHistoryStoreTests {
         #expect(store.errorMessage == nil)
     }
 
+    @Test("highlighted dates follow viewer timezone without changing stored instants")
+    func highlightedDatesFollowViewerTimezone() async throws {
+        let seoul = try #require(TimeZone(identifier: "Asia/Seoul"))
+        let vancouver = try #require(TimeZone(identifier: "America/Vancouver"))
+        var seoulCalendar = Calendar(identifier: .gregorian)
+        seoulCalendar.timeZone = seoul
+        var vancouverCalendar = Calendar(identifier: .gregorian)
+        vancouverCalendar.timeZone = vancouver
+
+        // 2026-10-24 23:00 UTC: Oct 25 in Seoul, Oct 24 in Vancouver.
+        let instant = try #require(ISO8601DateFormatter().date(from: "2026-10-24T23:00:00Z"))
+        let session = makeStoredSession(startedAt: instant)
+        let repository = HistoryStoreMockRepository(sessions: [session])
+        let store = WorkoutHistoryStore(repositoryProvider: { repository })
+        await store.reload()
+
+        let koreanDays = store.highlightedDates(calendar: seoulCalendar)
+        let canadianDays = store.highlightedDates(calendar: vancouverCalendar)
+
+        #expect(koreanDays == [seoulCalendar.startOfDay(for: instant)])
+        #expect(canadianDays == [vancouverCalendar.startOfDay(for: instant)])
+        #expect(koreanDays != canadianDays)
+        #expect(store.sessions.first?.session.timing.startDate == instant)
+    }
+
     @Test("highlighted dates use calendar start of day")
     func highlightedDatesUseStartOfDay() async {
         var calendar = Calendar(
