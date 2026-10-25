@@ -14,6 +14,13 @@ public struct WorkoutHistoryView: View {
     private var automaticReportSession:
         WorkoutSession?
 
+    @State
+    private var timeZoneRevision = 0
+
+    private var historyReloadKey: String {
+        "\(selectedDate?.timeIntervalSince1970.description ?? "all")-\(timeZoneRevision)"
+    }
+
     private let selectedDate: Date?
     private let maximumHeartRate: Double?
 
@@ -63,7 +70,10 @@ public struct WorkoutHistoryView: View {
                 content
             }
         }
-        .task(id: selectedDate) {
+        .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name.NSSystemTimeZoneDidChange)) { _ in
+            timeZoneRevision += 1
+        }
+        .task(id: historyReloadKey) {
             automaticReportSession = nil
 
             await viewModel.load(
