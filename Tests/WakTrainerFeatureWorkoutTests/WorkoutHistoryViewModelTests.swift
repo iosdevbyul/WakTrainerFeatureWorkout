@@ -207,9 +207,15 @@ struct WorkoutHistoryViewModelTests {
         await model.load(selectedDate: nil)
         #expect(model.sessions.first?.session.timing.activeDuration == 1700)
 
-        var restored = original
-        restored.session.timing.activeDuration = 1750
-        restored.session.timing.pausedDuration = 50
+        var updatedSession = original.session
+        updatedSession.timing.activeDuration = 1750
+        updatedSession.timing.pausedDuration = 50
+        let restored = StoredWorkoutSession(
+            session: updatedSession,
+            persistenceState: .completed,
+            syncState: .pending,
+            updatedAt: original.updatedAt
+        )
         repository.allSessions = [restored]
 
         await model.load(selectedDate: nil)
