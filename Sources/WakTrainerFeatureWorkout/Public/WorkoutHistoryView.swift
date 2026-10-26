@@ -23,6 +23,7 @@ public struct WorkoutHistoryView: View {
 
     private let selectedDate: Date?
     private let maximumHeartRate: Double?
+    private let sessionRepository: (any WorkoutSessionRepository)?
 
     public init(
         selectedDate: Date? = nil,
@@ -46,6 +47,7 @@ public struct WorkoutHistoryView: View {
         sessionRepository:
             (any WorkoutSessionRepository)?
     ) {
+        self.sessionRepository = sessionRepository
         self.selectedDate = selectedDate
         self.maximumHeartRate =
             maximumHeartRate
@@ -99,7 +101,8 @@ public struct WorkoutHistoryView: View {
                 HistoricalWorkoutReportView(
                     session: session,
                     maximumHeartRate:
-                        maximumHeartRate
+                        maximumHeartRate,
+                    sessionRepository: sessionRepository
                 )
             }
         }
@@ -149,7 +152,8 @@ private extension WorkoutHistoryView {
                         session:
                             storedSession.session,
                         maximumHeartRate:
-                            maximumHeartRate
+                            maximumHeartRate,
+                        sessionRepository: sessionRepository
                     )
                 } label: {
                     WorkoutHistoryRow(
@@ -288,21 +292,64 @@ private struct WorkoutHistoryRow: View {
     }
 }
 
+@MainActor
 private struct HistoricalWorkoutReportView: View {
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var restoreModel: WorkoutPauseRestoreViewModel
+    @State private var showingRestore = false
 
-    @Environment(\.dismiss)
-    private var dismiss
+    private let maximumHeartRate: Double?
 
-    let session: WorkoutSession
-    let maximumHeartRate: Double?
+    init(
+        session: WorkoutSession,
+        maximumHeartRate: Double?,
+        sessionRepository: (any WorkoutSessionRepository)?
+    ) {
+        self.maximumHeartRate = maximumHeartRate
+        _restoreModel = StateObject(wrappedValue: WorkoutPauseRestoreViewModel(
+            session: session,
+            storage: sessionRepository as? any WorkoutPauseRestoreStorage
+        ))
+    }
 
     var body: some View {
-        WorkoutReportView(
-            session: session,
-            maximumHeartRate:
-                maximumHeartRate
-        ) {
-            dismiss()
+        VStack(spacing: 0) {
+            if restoreModel.canRestore || restoreModel.canUndo {
+                HStack {
+                    if restoreModel.canRestore {
+                        Button("Restore Paused Time") {
+                            showingRestore = true
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
+                    if restoreModel.canUndo {
+                        Button("Undo Restore") {
+                            Task { await restoreModel.undo() }
+                        }
+                        .buttonStyle(.bordered)
+                    }
+                }
+                .padding(.horizontal)
+                .padding(.top, 8)
+            }
+            if let error = restoreModel.errorMessage {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .padding(.horizontal)
+            }
+            WorkoutReportView(
+                session: restoreModel.session,
+                maximumHeartRate: maximumHeartRate
+            ) {
+                dismiss()
+            }
+            .id(restoreModel.session.timing.pauseIntervals
+                .map { "\($0.startDate.timeIntervalSince1970)-\($0.endDate.timeIntervalSince1970)" }
+                .joined(separator: "|"))
+        }
+        .sheet(isPresented: $showingRestore) {
+            WorkoutPauseRestoreSheet(viewModel: restoreModel)
         }
     }
 }
