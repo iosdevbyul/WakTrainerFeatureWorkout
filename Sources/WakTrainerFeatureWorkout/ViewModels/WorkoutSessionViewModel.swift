@@ -264,7 +264,14 @@ final class WorkoutSessionViewModel: ObservableObject {
         sessionID = UUID()
 
         if !useSimulation {
-            _ = try? await healthKitManager.requestAuthorization()
+            do {
+                let granted = try await healthKitManager.requestAuthorization()
+                if !granted {
+                    healthDataCollectionError = "HealthKit authorization was not completed. Check Health permissions for WakTrainer."
+                }
+            } catch {
+                healthDataCollectionError = "HealthKit authorization failed: \(error.localizedDescription)"
+            }
         }
 
         if workout.requiresLocationTracking && !useSimulation {
