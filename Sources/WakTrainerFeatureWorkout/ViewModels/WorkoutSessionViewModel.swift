@@ -109,6 +109,8 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     private var sessionID = UUID()
     private var sessionStartDate: Date?
+    private var completedPauseIntervals: [WorkoutPauseInterval] = []
+    private var openPauseStartDate: Date?
     private var recoveredHealthData: WorkoutHealthData?
     private var recoveredActiveCaloriesBase: Double = 0
     private var recoveredStepCountBase: Double = 0
@@ -306,6 +308,7 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     func pauseWorkout() {
         guard timerState == .running else { return }
+        openPauseStartDate = Date()
         timerManager.pause()
         simulationTask?.cancel()
         if workout.requiresLocationTracking { locationManager?.stopTracking() }
@@ -320,6 +323,8 @@ final class WorkoutSessionViewModel: ObservableObject {
     }
 
     func resumeWorkout() {
+        guard timerState == .paused || needsRuntimeRestart else { return }
+        closeOpenPause(at: Date())
         if needsRuntimeRestart {
             recoveryResumeDate = Date()
 
@@ -353,6 +358,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         checkpointTask = nil
 
         let endDate = Date()
+        closeOpenPause(at: endDate)
         let startDate =
             sessionStartDate ?? endDate
         let activeDuration = elapsedTime
@@ -666,6 +672,8 @@ final class WorkoutSessionViewModel: ObservableObject {
     }
 
     private func resetSessionStateForNewWorkout() {
+        completedPauseIntervals = []
+        openPauseStartDate = nil
         healthDataCollectionError = nil
         storageError = nil
         healthSampleEndDates = [:]
@@ -815,6 +823,8 @@ final class WorkoutSessionViewModel: ObservableObject {
         sessionID = session.id
         sessionStartDate =
             session.timing.startDate
+        completedPauseIntervals = session.timing.pauseIntervals
+        openPauseStartDate = nil
         recoveredHealthData =
             session.health
 
@@ -1122,6 +1132,15 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     // MARK: - Session
 
+    private func closeOpenPause(at endDate: Date) {
+        guard let startDate = openPauseStartDate else { return }
+        openPauseStartDate = nil
+        guard endDate > startDate else { return }
+        completedPauseIntervals.append(
+            WorkoutPauseInterval(startDate: startDate, endDate: endDate)
+        )
+    }
+
     private func strengthExerciseRecordsSnapshot(
         endDate: Date?
     ) -> [WorkoutExerciseRecord] {
@@ -1203,7 +1222,10 @@ final class WorkoutSessionViewModel: ObservableObject {
                         0,
                         elapsedDuration
                         - normalizedActiveDuration
-                    )
+                    ),
+                pauseIntervals: completedPauseIntervals + (openPauseStartDate.map { start in
+                    [WorkoutPauseInterval(startDate: start, endDate: referenceDate)]
+                } ?? [])
             )
 
         let identity =
