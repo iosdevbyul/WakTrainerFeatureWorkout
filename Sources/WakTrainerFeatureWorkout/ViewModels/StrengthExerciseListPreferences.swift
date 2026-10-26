@@ -13,7 +13,9 @@ final class StrengthExerciseListPreferences: ObservableObject {
     @Published private(set) var usageCounts: [String: Int]
     @Published private(set) var customOrder: [String]
     @Published var favoritesOnly = false
-    @Published var sortMode: SortMode = .mostUsed
+    @Published var sortMode: SortMode = .mostUsed {
+        didSet { defaults.set(sortMode.rawValue, forKey: prefix + "sortMode") }
+    }
 
     private let defaults: UserDefaults
     private let prefix = "waktrainer.strength.exercise."
@@ -23,6 +25,7 @@ final class StrengthExerciseListPreferences: ObservableObject {
         favorites = Set(defaults.stringArray(forKey: prefix + "favorites") ?? [])
         usageCounts = defaults.dictionary(forKey: prefix + "usageCounts") as? [String: Int] ?? [:]
         customOrder = defaults.stringArray(forKey: prefix + "customOrder") ?? []
+        sortMode = SortMode(rawValue: defaults.string(forKey: prefix + "sortMode") ?? "") ?? .mostUsed
     }
 
     func isFavorite(_ id: String) -> Bool { favorites.contains(id) }
