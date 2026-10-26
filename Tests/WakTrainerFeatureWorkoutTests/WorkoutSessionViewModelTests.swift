@@ -19,6 +19,50 @@ import WakTrainerFeatureTimer
 struct WorkoutSessionViewModelTests {
 
     @Test
+    func liveHealthSnapshotPreservesOriginalAcquisitionTimes() async {
+        let acquiredAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let stepsAt = acquiredAt.addingTimeInterval(15)
+        let healthKitManager = MockHealthKitManager(
+            snapshot: HealthSnapshot(
+                heartRate: 136,
+                stepCount: 240,
+                activeCalories: 32,
+                distance: 550,
+                sampleEndDates: [
+                    .heartRate: acquiredAt,
+                    .stepCount: stepsAt
+                ]
+            ),
+            finalHealthData: WorkoutHealthData()
+        )
+        let viewModel = WorkoutSessionViewModel(
+            workout: WorkoutDefinition(
+                id: "walking",
+                name: "Walking",
+                category: .cardio,
+                type: .dynamicWorkout
+            ),
+            healthKitManager: healthKitManager,
+            locationManager: MockWorkoutLocationManager(),
+            timerManager: TimerManager()
+        )
+
+        await viewModel.startWorkout()
+
+        let received = await waitUntil {
+            viewModel.healthSampleEndDates[.heartRate] == acquiredAt
+                && viewModel.healthSampleEndDates[.stepCount] == stepsAt
+        }
+
+        #expect(received)
+        #expect(viewModel.heartRate == 136)
+        #expect(viewModel.stepCount == 240)
+        #expect(viewModel.healthSampleEndDates[.activeEnergyBurned] == nil)
+
+        _ = await viewModel.finishWorkout()
+    }
+
+    @Test
     func cardioWorkoutBuildsSessionAndStopsResources() async throws {
         let start = Date(
             timeIntervalSince1970: 1_800_000_000
