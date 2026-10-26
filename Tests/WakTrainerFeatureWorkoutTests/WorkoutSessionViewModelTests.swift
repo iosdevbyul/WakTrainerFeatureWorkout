@@ -400,7 +400,7 @@ struct WorkoutSessionViewModelTests {
         #expect(squat.id == squatID)
         #expect(squat.strengthSets.count == 2)
         #expect(bench.strengthSets.count == 2)
-        #expect(squat.strengthSets.map(\\.setNumber) == [1, 2])
+        #expect(squat.strengthSets.map(\.setNumber) == [1, 2])
     }
 
     @Test
