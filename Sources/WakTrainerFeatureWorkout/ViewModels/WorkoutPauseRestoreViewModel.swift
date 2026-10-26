@@ -50,6 +50,12 @@ final class WorkoutPauseRestoreViewModel: ObservableObject {
         }
     }
 
+    func replaceDisplayedSession(_ updated: WorkoutSession) {
+        session = updated
+        undoToken = nil
+        errorMessage = nil
+    }
+
     func undo() async {
         guard let service, let token = undoToken, !isSaving else { return }
         isSaving = true
