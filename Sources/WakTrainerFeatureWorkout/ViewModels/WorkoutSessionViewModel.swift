@@ -311,7 +311,8 @@ final class WorkoutSessionViewModel: ObservableObject {
         openPauseStartDate = Date()
         timerManager.pause()
         simulationTask?.cancel()
-        if workout.requiresLocationTracking { locationManager?.stopTracking() }
+        // Keep route capture alive while paused so the original GPS points
+        // remain available for a later partial restore.
 
         if isResting {
             restTimerManager.pause()
@@ -341,7 +342,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         }
 
         timerManager.start()
-        if workout.requiresLocationTracking && !useSimulation { locationManager?.startTracking() }
+        // Tracking was not stopped on pause. Recovery restarts it above.
         if useSimulation { startSimulation() }
 
         if isResting {
