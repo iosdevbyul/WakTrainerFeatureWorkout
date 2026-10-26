@@ -307,7 +307,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     }
 
     func pauseWorkout() {
-        guard timerState == .running else { return }
+        guard timerManager.state == .running else { return }
         openPauseStartDate = Date()
         timerManager.pause()
         simulationTask?.cancel()
@@ -323,7 +323,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     }
 
     func resumeWorkout() {
-        guard timerState == .paused || needsRuntimeRestart else { return }
+        guard timerManager.state == .paused || needsRuntimeRestart else { return }
         closeOpenPause(at: Date())
         if needsRuntimeRestart {
             recoveryResumeDate = Date()
