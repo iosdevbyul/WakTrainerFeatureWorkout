@@ -189,6 +189,33 @@ struct WorkoutSessionPersistenceTests {
         )
     }
 
+    @Test("recent running checkpoint restores elapsed wall time after process termination")
+    func recentRunningCheckpointRestoresWallTime() {
+        let now = Date()
+        let start = now.addingTimeInterval(-22 * 60)
+        let checkpoint = StoredWorkoutSession(
+            session: WorkoutSession(
+                workout: WorkoutIdentity(workoutID: "strength_training",
+                                         name: "Strength Training",
+                                         category: "strength", type: .staticWorkout),
+                timing: WorkoutTiming(startDate: start, endDate: nil,
+                                      elapsedDuration: 8 * 60, activeDuration: 8 * 60,
+                                      pausedDuration: 0),
+                health: WorkoutHealthData()
+            ),
+            persistenceState: .inProgress, syncState: .pending,
+            updatedAt: now.addingTimeInterval(-14 * 60)
+        )
+        let model = WorkoutSessionViewModel(
+            workout: strengthWorkout, restoredSession: checkpoint,
+            healthKitManager: PersistenceHealthManager(),
+            timerManager: TimerManager(), restTimerManager: TimerManager()
+        )
+        #expect(model.elapsedTime >= 21 * 60)
+        #expect(model.elapsedTime <= 23 * 60)
+        #expect(model.timerState == .paused)
+    }
+
     @Test("checkpoint and completed strength session share one top level session ID")
     func checkpointAndCompletedSessionShareID()
         async throws {
