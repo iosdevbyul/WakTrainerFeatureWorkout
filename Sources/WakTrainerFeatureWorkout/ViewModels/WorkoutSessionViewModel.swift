@@ -537,7 +537,8 @@ final class WorkoutSessionViewModel: ObservableObject {
     func recordStrengthSet(
         weightKilograms: Double?,
         repetitions: Int,
-        isWarmup: Bool = false
+        isWarmup: Bool = false,
+        startRest: Bool = false
     ) -> Bool {
         guard workout.category == .strength,
               timerManager.isRunning,
@@ -579,8 +580,10 @@ final class WorkoutSessionViewModel: ObservableObject {
         )
 
         restTimerManager.stop()
-        restTimerManager.start()
-        isResting = true
+        if startRest {
+            restTimerManager.start()
+        }
+        isResting = startRest
 
         Task {
             await saveCheckpoint()
