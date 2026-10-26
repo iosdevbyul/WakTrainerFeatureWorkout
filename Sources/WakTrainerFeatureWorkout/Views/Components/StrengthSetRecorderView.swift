@@ -12,6 +12,13 @@ struct StrengthSetRecorderView: View {
     @State private var repetitionsText = ""
     @State private var isWarmup = false
     @State private var editingSet: StrengthSetRecord?
+    @AppStorage("WakTrainer.strength.trackRest") private var trackRest = false
+    @FocusState private var focusedInput: SetInput?
+
+    private enum SetInput: Hashable {
+        case weight
+        case reps
+    }
 
     var body: some View {
         VStack(
@@ -32,6 +39,7 @@ struct StrengthSetRecorderView: View {
             }
         }
         .padding(16)
+        .scrollDismissesKeyboard(.interactively)
         .background(
             .regularMaterial
         )
@@ -161,8 +169,8 @@ struct StrengthSetRecorderView: View {
 
     private var setInput:
         some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 10) {
+        VStack(spacing: 14) {
+            HStack(spacing: 12) {
                 if requiresWeightInput {
                     inputField(
                         title: "Weight",
@@ -170,7 +178,8 @@ struct StrengthSetRecorderView: View {
                             $weightText,
                         unit: weightUnit.rawValue,
                         keyboardType:
-                            .decimalPad
+                            .decimalPad,
+                        focus: .weight
                     )
                 }
 
@@ -180,9 +189,13 @@ struct StrengthSetRecorderView: View {
                         $repetitionsText,
                     unit: "reps",
                     keyboardType:
-                        .numberPad
+                        .numberPad,
+                    focus: .reps
                 )
             }
+
+            Toggle("Track Rest Between Sets", isOn: $trackRest)
+                .font(.subheadline)
 
             Toggle(
                 "Warm-up Set",
@@ -266,29 +279,28 @@ struct StrengthSetRecorderView: View {
         title: String,
         text: Binding<String>,
         unit: String,
-        keyboardType:
-            UIKeyboardType
+        keyboardType: UIKeyboardType,
+        focus: SetInput
     ) -> some View {
-        HStack(spacing: 6) {
-            TextField(
-                title,
-                text: text
-            )
-            .keyboardType(
-                keyboardType
-            )
-            .textFieldStyle(
-                .roundedBorder
-            )
-
-            Text(unit)
-                .font(
-                    .subheadline
-                )
-                .foregroundStyle(
-                    .secondary
-                )
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                TextField("0", text: text)
+                    .keyboardType(keyboardType)
+                    .focused($focusedInput, equals: focus)
+                    .font(.system(size: 26, weight: .semibold, design: .rounded))
+                    .minimumScaleFactor(0.8)
+                Text(unit)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 12)
+            .frame(minHeight: 60)
+            .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 12))
         }
+        .frame(maxWidth: .infinity)
     }
 
     private var requiresWeightInput:
@@ -354,13 +366,15 @@ struct StrengthSetRecorderView: View {
                     repetitions:
                         repetitions,
                     isWarmup:
-                        isWarmup
+                        isWarmup,
+                    startRest: trackRest
                 )
 
         guard didRecord else {
             return
         }
 
+        focusedInput = nil
         fillPreviousSet()
     }
 
