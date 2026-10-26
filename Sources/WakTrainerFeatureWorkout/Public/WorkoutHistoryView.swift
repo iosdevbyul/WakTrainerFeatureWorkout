@@ -17,6 +17,9 @@ public struct WorkoutHistoryView: View {
     @State
     private var timeZoneRevision = 0
 
+    @State
+    private var hasAppeared = false
+
     private var historyReloadKey: String {
         "\(selectedDate?.timeIntervalSince1970.description ?? "all")-\(timeZoneRevision)"
     }
@@ -72,6 +75,13 @@ public struct WorkoutHistoryView: View {
                 content
             }
         }
+        .onAppear {
+            if hasAppeared {
+                Task { await viewModel.load(selectedDate: selectedDate) }
+            } else {
+                hasAppeared = true
+            }
+        }
         .onReceive(NotificationCenter.default.publisher(for: NSNotification.Name.NSSystemTimeZoneDidChange)) { _ in
             timeZoneRevision += 1
         }
@@ -102,7 +112,10 @@ public struct WorkoutHistoryView: View {
                     session: session,
                     maximumHeartRate:
                         maximumHeartRate,
-                    sessionRepository: sessionRepository
+                    sessionRepository: sessionRepository,
+                    onSessionChanged: { _ in
+                        Task { await viewModel.load(selectedDate: selectedDate) }
+                    }
                 )
             }
         }
@@ -153,7 +166,10 @@ private extension WorkoutHistoryView {
                             storedSession.session,
                         maximumHeartRate:
                             maximumHeartRate,
-                        sessionRepository: sessionRepository
+                        sessionRepository: sessionRepository,
+                        onSessionChanged: { _ in
+                            Task { await viewModel.load(selectedDate: selectedDate) }
+                        }
                     )
                 } label: {
                     WorkoutHistoryRow(
@@ -299,12 +315,15 @@ private struct HistoricalWorkoutReportView: View {
     @State private var showingRestore = false
 
     private let maximumHeartRate: Double?
+    private let onSessionChanged: (WorkoutSession) -> Void
 
     init(
         session: WorkoutSession,
         maximumHeartRate: Double?,
-        sessionRepository: (any WorkoutSessionRepository)?
+        sessionRepository: (any WorkoutSessionRepository)?,
+        onSessionChanged: @escaping (WorkoutSession) -> Void
     ) {
+        self.onSessionChanged = onSessionChanged
         self.maximumHeartRate = maximumHeartRate
         _restoreModel = StateObject(wrappedValue: WorkoutPauseRestoreViewModel(
             session: session,
@@ -350,6 +369,9 @@ private struct HistoricalWorkoutReportView: View {
         }
         .sheet(isPresented: $showingRestore) {
             WorkoutPauseRestoreSheet(viewModel: restoreModel)
+        }
+        .onChange(of: restoreModel.session) { _, updated in
+            onSessionChanged(updated)
         }
     }
 }
