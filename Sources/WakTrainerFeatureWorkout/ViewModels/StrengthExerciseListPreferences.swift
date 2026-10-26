@@ -1,4 +1,4 @@
-import Foundation
+import SwiftUI
 
 /// Preferences are keyed by stable exercise IDs and survive catalog additions.
 @MainActor
