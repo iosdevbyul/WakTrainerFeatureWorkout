@@ -479,6 +479,53 @@ struct WorkoutSessionViewModelTests {
     }
 
     @Test
+    func cyclingPauseKeepsGPSActiveAndPreservesPausedRoute() async throws {
+        let locationManager = MockWorkoutLocationManager()
+        let viewModel = WorkoutSessionViewModel(
+            workout: WorkoutDefinition(
+                id: "cycling",
+                name: "Cycling",
+                category: .cardio,
+                type: .dynamicWorkout
+            ),
+            healthKitManager: MockHealthKitManager(
+                snapshot: HealthSnapshot(),
+                finalHealthData: WorkoutHealthData()
+            ),
+            locationManager: locationManager,
+            timerManager: TimerManager()
+        )
+
+        await viewModel.startWorkout()
+        #expect(locationManager.startTrackingCallCount == 1)
+
+        viewModel.pauseWorkout()
+        #expect(locationManager.stopTrackingCallCount == 0)
+
+        let pausedPoint = WorkoutRoutePoint(
+            timestamp: Date(),
+            latitude: 37.5665,
+            longitude: 126.978,
+            altitude: 15
+        )
+        locationManager.send(routePoints: [pausedPoint])
+        let received = await waitUntil {
+            viewModel.routePoints.contains(pausedPoint)
+        }
+        #expect(received)
+
+        try await Task.sleep(nanoseconds: 100_000_000)
+        viewModel.resumeWorkout()
+        #expect(locationManager.startTrackingCallCount == 1)
+        #expect(locationManager.stopTrackingCallCount == 0)
+
+        let session = await viewModel.finishWorkout()
+        #expect(session.route.contains(pausedPoint))
+        #expect(session.timing.pauseIntervals.count == 1)
+        #expect(locationManager.stopTrackingCallCount == 1)
+    }
+
+    @Test
     func pauseTimeIsSeparatedFromActiveTime() async throws {
         let viewModel = WorkoutSessionViewModel(
             workout: WorkoutDefinition(
