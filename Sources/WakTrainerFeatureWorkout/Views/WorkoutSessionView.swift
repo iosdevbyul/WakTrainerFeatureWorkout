@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import WakTrainerCoreModels
 import WakTrainerDomainWorkout
 import WakTrainerFeatureTimer
@@ -181,6 +182,8 @@ struct WorkoutSessionView: View {
         }
         .padding(.top, 16)
         .padding(.horizontal, 20)
+        .contentShape(Rectangle())
+        .onTapGesture { dismissWorkoutKeyboard() }
     }
 
     // MARK: - Cardio
@@ -303,7 +306,19 @@ struct WorkoutSessionView: View {
                 )
             }
             .scrollDismissesKeyboard(.interactively)
+            .background {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture { dismissWorkoutKeyboard() }
+            }
         }
+    }
+
+    private func dismissWorkoutKeyboard() {
+        UIApplication.shared.sendAction(
+            #selector(UIResponder.resignFirstResponder),
+            to: nil, from: nil, for: nil
+        )
     }
 
     private var chooseExerciseCard:
