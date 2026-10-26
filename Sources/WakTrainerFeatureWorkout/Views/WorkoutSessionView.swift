@@ -302,6 +302,7 @@ struct WorkoutSessionView: View {
                     24
                 )
             }
+            .scrollDismissesKeyboard(.interactively)
         }
     }
 
