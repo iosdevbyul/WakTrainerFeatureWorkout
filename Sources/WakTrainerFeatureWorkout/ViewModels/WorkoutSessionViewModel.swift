@@ -693,6 +693,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         completedStrengthExerciseRecords
             .append(
                 WorkoutExerciseRecord(
+                    id: activeStrengthRecordID,
                     exerciseID:
                         exercise.id,
                     name:
