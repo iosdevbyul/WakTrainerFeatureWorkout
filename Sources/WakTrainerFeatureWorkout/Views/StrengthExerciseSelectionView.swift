@@ -106,18 +106,26 @@ struct StrengthExerciseSelectionView: View {
     }
 
     private func exerciseList(for group: StrengthMuscleGroup) -> some View {
-        List {
-            Toggle("Favorites only", isOn: $preferences.favoritesOnly)
-            Picker("Sort by", selection: $preferences.sortMode) {
-                ForEach(StrengthExerciseListPreferences.SortMode.allCases) { mode in
-                    Text(mode.rawValue).tag(mode)
+        VStack(spacing: 0) {
+            VStack(alignment: .leading, spacing: 12) {
+                Toggle("Favorites only", isOn: $preferences.favoritesOnly)
+                    .font(.body)
+                Picker("Sort by", selection: $preferences.sortMode) {
+                    ForEach(StrengthExerciseListPreferences.SortMode.allCases) { mode in
+                        Text(mode.rawValue).tag(mode)
+                    }
+                }
+                .font(.body)
+                if preferences.sortMode == .custom {
+                    Text("Drag the handles to arrange your exercises")
+                        .font(.subheadline).foregroundStyle(.secondary)
                 }
             }
-            if preferences.sortMode == .custom {
-                Text("Drag the handles to arrange your exercises")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            ForEach(displayedExercises(for: group)) { exercise in
+            .padding(16)
+            .background(.regularMaterial)
+            Divider()
+            List {
+                ForEach(displayedExercises(for: group)) { exercise in
             Button {
                 if exercise.supportedEquipment.count == 1,
                    let equipment = exercise.supportedEquipment.first {
@@ -138,9 +146,11 @@ struct StrengthExerciseSelectionView: View {
                 .tint(.yellow)
             }
             }
-            .onMove { from, to in
-                preferences.move(displayedExercises(for: group).map(\.id), from: from, to: to)
+                .onMove { from, to in
+                    preferences.move(displayedExercises(for: group).map(\.id), from: from, to: to)
+                }
             }
+            .listStyle(.plain)
         }
         .environment(\.editMode, .constant(preferences.sortMode == .custom ? .active : .inactive))
         .listStyle(.plain)
@@ -187,6 +197,9 @@ struct StrengthExerciseSelectionView: View {
             Spacer()
             Image(systemName: "chevron.right").foregroundStyle(.secondary)
         }
+        .padding(.vertical, 12)
+        .frame(minHeight: 54)
+        .font(.title3.weight(.medium))
         .contentShape(Rectangle())
     }
 }
