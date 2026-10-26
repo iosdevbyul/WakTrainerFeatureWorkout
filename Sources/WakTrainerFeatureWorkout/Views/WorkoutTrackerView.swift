@@ -1,4 +1,5 @@
 import SwiftUI
+import WakTrainerCoreModels
 
 struct WorkoutTrackerView: View {
     @ObservedObject private var viewModel: WorkoutSessionViewModel
@@ -13,10 +14,20 @@ struct WorkoutTrackerView: View {
     }
 
     var body: some View {
-        LazyVGrid(columns: columns, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
+            if let error = viewModel.healthDataCollectionError {
+                Label(error, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            } else if viewModel.healthSampleEndDates.isEmpty {
+                Label("Waiting for HealthKit samples. Heart rate may require a paired device or another active source.", systemImage: "heart.text.square")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            LazyVGrid(columns: columns, spacing: 12) {
             MetricCard(
                 title: "Heart Rate",
-                value: "\(Int(viewModel.heartRate))",
+                value: viewModel.healthSampleEndDates[.heartRate] == nil ? "—" : "\(Int(viewModel.heartRate))",
                 unit: "BPM",
                 iconName: "heart.fill",
                 iconColor: .red
@@ -24,7 +35,7 @@ struct WorkoutTrackerView: View {
 
             MetricCard(
                 title: "Calories",
-                value: "\(Int(viewModel.activeCalories))",
+                value: viewModel.healthSampleEndDates[.activeEnergyBurned] == nil ? "—" : "\(Int(viewModel.activeCalories))",
                 unit: "kcal",
                 iconName: "flame.fill",
                 iconColor: .orange
@@ -32,7 +43,7 @@ struct WorkoutTrackerView: View {
 
             MetricCard(
                 title: "Steps",
-                value: "\(Int(viewModel.stepCount))",
+                value: viewModel.healthSampleEndDates[.stepCount] == nil ? "—" : "\(Int(viewModel.stepCount))",
                 unit: "steps",
                 iconName: "shoeprints.fill",
                 iconColor: .blue
@@ -40,11 +51,12 @@ struct WorkoutTrackerView: View {
 
             MetricCard(
                 title: "Distance",
-                value: String(format: "%.2f", viewModel.distanceKilometers),
+                value: viewModel.healthSampleEndDates[.distanceWalkingRunning] == nil && viewModel.healthSampleEndDates[.distanceCycling] == nil ? "—" : String(format: "%.2f", viewModel.distanceKilometers),
                 unit: "km",
                 iconName: "figure.walk",
                 iconColor: .green
             )
+            }
         }
     }
 }

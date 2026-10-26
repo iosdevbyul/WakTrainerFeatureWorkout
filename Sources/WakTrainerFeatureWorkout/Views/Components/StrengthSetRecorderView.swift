@@ -11,6 +11,7 @@ struct StrengthSetRecorderView: View {
     @State private var weightText = ""
     @State private var repetitionsText = ""
     @State private var isWarmup = false
+    @State private var editingSet: StrengthSetRecord?
 
     var body: some View {
         VStack(
@@ -43,6 +44,13 @@ struct StrengthSetRecorderView: View {
             fillPreviousSet()
         }
         .onAppear { fillPreviousSet() }
+        .sheet(item: $editingSet) { set in
+            StrengthSetEditSheet(set: set, weightUnit: weightUnit,
+                                 requiresWeight: requiresWeightInput) { weight, reps, warmup in
+                viewModel.updateStrengthSet(id: set.id, weightKilograms: weight,
+                                            repetitions: reps, isWarmup: warmup)
+            }
+        }
         .onChange(
             of:
                 viewModel
@@ -144,6 +152,8 @@ struct StrengthSetRecorderView: View {
                             cornerRadius: 10
                         )
                     )
+                    .onTapGesture { editingSet = set }
+                    .accessibilityAddTraits(.isButton)
                 }
             }
         }
@@ -410,5 +420,72 @@ struct StrengthSetRecorderView: View {
             weightUnit.rawValue,
             repetitions
         )
+    }
+}
+
+private struct StrengthSetEditSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let set: StrengthSetRecord
+    let weightUnit: WorkoutWeightUnit
+    let requiresWeight: Bool
+    let onSave: (Double?, Int, Bool) -> Bool
+
+    @State private var weight: String
+    @State private var reps: String
+    @State private var warmup: Bool
+
+    init(set: StrengthSetRecord, weightUnit: WorkoutWeightUnit,
+         requiresWeight: Bool, onSave: @escaping (Double?, Int, Bool) -> Bool) {
+        self.set = set
+        self.weightUnit = weightUnit
+        self.requiresWeight = requiresWeight
+        self.onSave = onSave
+        _weight = State(initialValue: set.weightKilograms.map {
+            String(format: "%.1f", weightUnit.fromKilograms($0))
+        } ?? "")
+        _reps = State(initialValue: set.repetitions.map(String.init) ?? "")
+        _warmup = State(initialValue: set.isWarmup)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                if requiresWeight {
+                    TextField("Weight (\(weightUnit.rawValue))", text: $weight)
+                        .keyboardType(.decimalPad)
+                }
+                TextField("Repetitions", text: $reps).keyboardType(.numberPad)
+                Toggle("Warm-up Set", isOn: $warmup)
+            }
+            .navigationTitle("Edit Set \(set.setNumber)")
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        if let count = Int(reps),
+                           onSave(parsedWeight, count, warmup) {
+                            dismiss()
+                        }
+                    }
+                    .disabled(!isValid)
+                }
+            }
+        }
+    }
+
+    private var parsedWeight: Double? {
+        guard let value = Double(weight.replacingOccurrences(of: ",", with: ".")) else {
+            return nil
+        }
+        return weightUnit.toKilograms(value)
+    }
+
+    private var isValid: Bool {
+        guard let count = Int(reps), count > 0 else { return false }
+        guard requiresWeight else { return true }
+        guard let value = parsedWeight else { return false }
+        return value > 0 && value.isFinite
     }
 }

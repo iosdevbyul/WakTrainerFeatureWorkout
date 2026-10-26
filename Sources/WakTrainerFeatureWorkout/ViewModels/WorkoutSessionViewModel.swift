@@ -264,7 +264,14 @@ final class WorkoutSessionViewModel: ObservableObject {
         sessionID = UUID()
 
         if !useSimulation {
-            _ = try? await healthKitManager.requestAuthorization()
+            do {
+                let granted = try await healthKitManager.requestAuthorization()
+                if !granted {
+                    healthDataCollectionError = "HealthKit authorization was not completed. Check Health permissions for WakTrainer."
+                }
+            } catch {
+                healthDataCollectionError = "HealthKit authorization failed: \(error.localizedDescription)"
+            }
         }
 
         if workout.requiresLocationTracking && !useSimulation {
@@ -583,6 +590,35 @@ final class WorkoutSessionViewModel: ObservableObject {
     }
 
     @discardableResult
+    func updateStrengthSet(
+        id: UUID,
+        weightKilograms: Double?,
+        repetitions: Int,
+        isWarmup: Bool
+    ) -> Bool {
+        guard workout.category == .strength,
+              timerState != .idle,
+              let equipment = activeStrengthEquipment,
+              let index = strengthSets.firstIndex(where: { $0.id == id }),
+              repetitions > 0 else {
+            return false
+        }
+
+        if equipment.requiresWeightInput {
+            guard let weightKilograms, weightKilograms > 0,
+                  weightKilograms.isFinite else { return false }
+            strengthSets[index].weightKilograms = weightKilograms
+        } else {
+            strengthSets[index].weightKilograms = nil
+        }
+        strengthSets[index].repetitions = repetitions
+        strengthSets[index].isWarmup = isWarmup
+
+        Task { await saveCheckpoint() }
+        return true
+    }
+
+    @discardableResult
     func finishRestAndStartNextSet()
         -> Bool {
         guard workout.category == .strength,
@@ -871,11 +907,34 @@ final class WorkoutSessionViewModel: ObservableObject {
         routeCoordinates =
             restoredRouteCoordinates
 
-        timerManager.restore(
-            elapsedTime:
-                session.timing
-                    .activeDuration
-        )
+        // A checkpoint stores active time only up to its last write.
+        // Recover wall-clock time since the workout began, excluding
+        // explicit recorded pauses. Otherwise a process termination loses
+        // all workout time after the last checkpoint.
+        let now = Date()
+        let wallDuration = max(0, now.timeIntervalSince(session.timing.startDate))
+        let recordedPauseDuration = session.timing.pauseIntervals.reduce(0.0) {
+            total, interval in
+            total + max(0, interval.endDate.timeIntervalSince(interval.startDate))
+        }
+        // Do not extrapolate stale/legacy sessions indefinitely.
+        // A checkpoint taken during a pause has a trailing pause interval
+        // ending at its save time; keep the timer stopped in that case.
+        let checkpointAge = now.timeIntervalSince(storedSession.updatedAt)
+        let recentlyCheckpointed = checkpointAge >= 0 && checkpointAge <= 12 * 3600
+        let wasPausedAtCheckpoint = session.timing.pauseIntervals.last.map {
+            abs($0.endDate.timeIntervalSince(storedSession.updatedAt)) <= 2
+        } ?? false
+        let recoveredDuration: TimeInterval
+        if recentlyCheckpointed && !wasPausedAtCheckpoint {
+            recoveredDuration = min(
+                wallDuration,
+                max(session.timing.activeDuration, wallDuration - recordedPauseDuration)
+            )
+        } else {
+            recoveredDuration = session.timing.activeDuration
+        }
+        timerManager.restore(elapsedTime: recoveredDuration)
 
         elapsedTime =
             timerManager.elapsedTime
