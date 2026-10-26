@@ -313,6 +313,8 @@ private struct HistoricalWorkoutReportView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var restoreModel: WorkoutPauseRestoreViewModel
     @State private var showingRestore = false
+    @State private var showingStrengthEditor = false
+    private let editStorage: (any WorkoutPauseRestoreStorage)?
 
     private let maximumHeartRate: Double?
     private let onSessionChanged: (WorkoutSession) -> Void
@@ -325,6 +327,7 @@ private struct HistoricalWorkoutReportView: View {
     ) {
         self.onSessionChanged = onSessionChanged
         self.maximumHeartRate = maximumHeartRate
+        self.editStorage = sessionRepository as? any WorkoutPauseRestoreStorage
         _restoreModel = StateObject(wrappedValue: WorkoutPauseRestoreViewModel(
             session: session,
             storage: sessionRepository as? any WorkoutPauseRestoreStorage
@@ -333,8 +336,12 @@ private struct HistoricalWorkoutReportView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if restoreModel.canRestore || restoreModel.canUndo {
+            if restoreModel.canRestore || restoreModel.canUndo || (editStorage != nil && restoreModel.session.exerciseRecords.contains(where: { $0.kind == .strength })) {
                 HStack {
+                    if editStorage != nil && restoreModel.session.exerciseRecords.contains(where: { $0.kind == .strength }) {
+                        Button("Edit Sets") { showingStrengthEditor = true }
+                            .buttonStyle(.borderedProminent)
+                    }
                     if restoreModel.canRestore {
                         Button("Restore Paused Time") {
                             showingRestore = true
@@ -369,6 +376,15 @@ private struct HistoricalWorkoutReportView: View {
         }
         .sheet(isPresented: $showingRestore) {
             WorkoutPauseRestoreSheet(viewModel: restoreModel)
+        }
+        .sheet(isPresented: $showingStrengthEditor) {
+            HistoricalStrengthSetEditor(
+                session: restoreModel.session,
+                storage: editStorage,
+                onSaved: { updated in
+                    restoreModel.replaceDisplayedSession(updated)
+                }
+            )
         }
         .onChange(of: restoreModel.session) { _, updated in
             onSessionChanged(updated)
