@@ -429,7 +429,7 @@ struct WorkoutSessionView: View {
             alignment: .leading,
             spacing: 10
         ) {
-            Text("Completed Exercises")
+            Text("Other Exercises")
                 .font(.headline)
 
             ForEach(
@@ -471,13 +471,22 @@ struct WorkoutSessionView: View {
 
                     Spacer()
 
-                    Image(
-                        systemName:
-                            "checkmark.circle.fill"
-                    )
-                    .foregroundStyle(
-                        .secondary
-                    )
+                    if let exerciseID = record.exerciseID,
+                       let equipment = record.strengthEquipment {
+                        Button("Resume") {
+                            let definition = StrengthExerciseDefinition(
+                                id: exerciseID,
+                                name: record.name,
+                                supportedEquipment: [equipment]
+                            )
+                            _ = viewModel.beginStrengthExercise(definition, equipment: equipment)
+                        }
+                        .buttonStyle(.bordered)
+                        .disabled(viewModel.timerState == .idle)
+                    } else {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundStyle(.secondary)
+                    }
                 }
             }
         }

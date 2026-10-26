@@ -378,6 +378,32 @@ struct WorkoutSessionViewModelTests {
     }
 
     @Test
+    func alternatingStrengthExercisesResumeExistingSetsAndIdentity() async throws {
+        let viewModel = makeStrengthViewModel()
+        #expect(viewModel.beginStrengthExercise(squatDefinition, equipment: .barbell))
+        await viewModel.startWorkout()
+        #expect(viewModel.recordStrengthSet(weightKilograms: 80, repetitions: 8))
+        #expect(viewModel.beginStrengthExercise(benchPressDefinition, equipment: .dumbbell))
+        let squatID = try #require(viewModel.completedStrengthExerciseRecords.first?.id)
+        #expect(viewModel.recordStrengthSet(weightKilograms: 30, repetitions: 10))
+        #expect(viewModel.beginStrengthExercise(squatDefinition, equipment: .barbell))
+        #expect(viewModel.strengthSets.count == 1)
+        #expect(viewModel.nextStrengthSetNumber == 2)
+        #expect(viewModel.recordStrengthSet(weightKilograms: 85, repetitions: 6))
+        #expect(viewModel.beginStrengthExercise(benchPressDefinition, equipment: .dumbbell))
+        #expect(viewModel.strengthSets.count == 1)
+        #expect(viewModel.recordStrengthSet(weightKilograms: 32, repetitions: 8))
+        let session = await viewModel.finishWorkout()
+        #expect(session.exerciseRecords.count == 2)
+        let squat = try #require(session.exerciseRecords.first { $0.exerciseID == "squat" })
+        let bench = try #require(session.exerciseRecords.first { $0.exerciseID == "bench_press" })
+        #expect(squat.id == squatID)
+        #expect(squat.strengthSets.count == 2)
+        #expect(bench.strengthSets.count == 2)
+        #expect(squat.strengthSets.map(\.setNumber) == [1, 2])
+    }
+
+    @Test
     func bodyweightStrengthSetStoresRepsWithoutWeight() async throws {
         let viewModel = makeStrengthViewModel()
 
