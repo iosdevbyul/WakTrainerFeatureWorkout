@@ -104,6 +104,7 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     private var activeStrengthExerciseStartDate:
         Date?
+    private var activeStrengthRecordID = UUID()
 
     // MARK: - Session State
 
@@ -494,15 +495,25 @@ final class WorkoutSessionViewModel: ObservableObject {
         restTimerManager.stop()
         isResting = false
 
+        // Returning to a previously used exercise continues its existing sets
+        // rather than creating another record for the same superset movement.
+        if let index = completedStrengthExerciseRecords.firstIndex(where: {
+            $0.exerciseID == exercise.id && $0.strengthEquipment == equipment
+        }) {
+            let previous = completedStrengthExerciseRecords.remove(at: index)
+            activeStrengthRecordID = previous.id
+            activeStrengthExerciseStartDate = previous.startDate
+            strengthSets = previous.strengthSets
+        } else {
+            activeStrengthRecordID = UUID()
+            activeStrengthExerciseStartDate = timerState == .idle ? nil : Date()
+            strengthSets = []
+        }
+
         activeStrengthExercise =
             exercise
         activeStrengthEquipment =
             equipment
-        activeStrengthExerciseStartDate =
-            timerState == .idle
-                ? nil
-                : Date()
-        strengthSets = []
 
         if timerState != .idle {
             Task {
@@ -708,6 +719,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         activeStrengthExercise = nil
         activeStrengthEquipment = nil
         activeStrengthExerciseStartDate = nil
+        activeStrengthRecordID = UUID()
         strengthSets = []
     }
 
@@ -1007,6 +1019,7 @@ final class WorkoutSessionViewModel: ObservableObject {
                 .strengthEquipment
         activeStrengthExerciseStartDate =
             activeRecord.startDate
+        activeStrengthRecordID = activeRecord.id
         strengthSets =
             activeRecord.strengthSets
     }
@@ -1218,6 +1231,7 @@ final class WorkoutSessionViewModel: ObservableObject {
 
         records.append(
             WorkoutExerciseRecord(
+                id: activeStrengthRecordID,
                 exerciseID:
                     exercise.id,
                 name:
