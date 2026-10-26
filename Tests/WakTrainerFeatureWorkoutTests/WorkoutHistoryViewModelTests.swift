@@ -197,6 +197,29 @@ struct WorkoutHistoryViewModelTests {
         )
     }
 
+    @Test("reloading history reflects a persisted Restore and Undo snapshot")
+    func reloadReflectsUpdatedStoredSession() async {
+        let startedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let original = makeStoredSession(startedAt: startedAt)
+        let repository = HistoryMockWorkoutSessionRepository(allSessions: [original])
+        let model = WorkoutHistoryViewModel(sessionRepository: repository)
+
+        await model.load(selectedDate: nil)
+        #expect(model.sessions.first?.session.timing.activeDuration == 1700)
+
+        var restored = original
+        restored.session.timing.activeDuration = 1750
+        restored.session.timing.pausedDuration = 50
+        repository.allSessions = [restored]
+
+        await model.load(selectedDate: nil)
+        #expect(model.sessions == [restored])
+
+        repository.allSessions = [original]
+        await model.load(selectedDate: nil)
+        #expect(model.sessions == [original])
+    }
+
     @Test("missing storage exposes an English error")
     func missingStorageExposesError() async {
         let viewModel =
