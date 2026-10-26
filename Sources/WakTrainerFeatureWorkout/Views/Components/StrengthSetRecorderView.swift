@@ -26,6 +26,8 @@ struct StrengthSetRecorderView: View {
             spacing: 12
         ) {
             header
+                .contentShape(Rectangle())
+                .onTapGesture { focusedInput = nil }
 
             if !viewModel.strengthSets
                 .isEmpty {
@@ -39,6 +41,11 @@ struct StrengthSetRecorderView: View {
             }
         }
         .padding(16)
+        .background {
+            Color.clear
+                .contentShape(Rectangle())
+                .onTapGesture { focusedInput = nil }
+        }
         .scrollDismissesKeyboard(.interactively)
         .background(
             .regularMaterial
@@ -52,6 +59,12 @@ struct StrengthSetRecorderView: View {
             fillPreviousSet()
         }
         .onAppear { fillPreviousSet() }
+        .toolbar {
+            ToolbarItemGroup(placement: .keyboard) {
+                Spacer()
+                Button("Done") { focusedInput = nil }
+            }
+        }
         .sheet(item: $editingSet) { set in
             StrengthSetEditSheet(set: set, weightUnit: weightUnit,
                                  requiresWeight: requiresWeightInput) { weight, reps, warmup in
