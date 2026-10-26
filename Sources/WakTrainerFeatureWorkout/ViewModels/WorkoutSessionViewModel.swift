@@ -583,6 +583,35 @@ final class WorkoutSessionViewModel: ObservableObject {
     }
 
     @discardableResult
+    func updateStrengthSet(
+        id: UUID,
+        weightKilograms: Double?,
+        repetitions: Int,
+        isWarmup: Bool
+    ) -> Bool {
+        guard workout.category == .strength,
+              timerState != .idle,
+              let equipment = activeStrengthEquipment,
+              let index = strengthSets.firstIndex(where: { $0.id == id }),
+              repetitions > 0 else {
+            return false
+        }
+
+        if equipment.requiresWeightInput {
+            guard let weightKilograms, weightKilograms > 0,
+                  weightKilograms.isFinite else { return false }
+            strengthSets[index].weightKilograms = weightKilograms
+        } else {
+            strengthSets[index].weightKilograms = nil
+        }
+        strengthSets[index].repetitions = repetitions
+        strengthSets[index].isWarmup = isWarmup
+
+        Task { await saveCheckpoint() }
+        return true
+    }
+
+    @discardableResult
     func finishRestAndStartNextSet()
         -> Bool {
         guard workout.category == .strength,
