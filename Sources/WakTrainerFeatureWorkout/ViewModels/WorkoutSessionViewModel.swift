@@ -917,10 +917,23 @@ final class WorkoutSessionViewModel: ObservableObject {
             total, interval in
             total + max(0, interval.endDate.timeIntervalSince(interval.startDate))
         }
-        let recoveredDuration = min(
-            wallDuration,
-            max(session.timing.activeDuration, wallDuration - recordedPauseDuration)
-        )
+        // Do not extrapolate stale/legacy sessions indefinitely.
+        // A checkpoint taken during a pause has a trailing pause interval
+        // ending at its save time; keep the timer stopped in that case.
+        let checkpointAge = now.timeIntervalSince(storedSession.updatedAt)
+        let recentlyCheckpointed = checkpointAge >= 0 && checkpointAge <= 12 * 3600
+        let wasPausedAtCheckpoint = session.timing.pauseIntervals.last.map {
+            abs($0.endDate.timeIntervalSince(storedSession.updatedAt)) <= 2
+        } ?? false
+        let recoveredDuration: TimeInterval
+        if recentlyCheckpointed && !wasPausedAtCheckpoint {
+            recoveredDuration = min(
+                wallDuration,
+                max(session.timing.activeDuration, wallDuration - recordedPauseDuration)
+            )
+        } else {
+            recoveredDuration = session.timing.activeDuration
+        }
         timerManager.restore(elapsedTime: recoveredDuration)
 
         elapsedTime =
