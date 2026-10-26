@@ -279,6 +279,22 @@ struct WorkoutSessionViewModelTests {
     }
 
     @Test
+    func strengthSetDoesNotStartRestUnlessRequested() async {
+        let viewModel = makeStrengthViewModel()
+        #expect(viewModel.beginStrengthExercise(squatDefinition, equipment: .barbell))
+        await viewModel.startWorkout()
+
+        #expect(viewModel.recordStrengthSet(weightKilograms: 80, repetitions: 8))
+        #expect(!viewModel.isResting)
+        #expect(!viewModel.finishRestAndStartNextSet())
+        #expect(viewModel.recordStrengthSet(weightKilograms: 85, repetitions: 8, startRest: true))
+        #expect(viewModel.isResting)
+        #expect(viewModel.finishRestAndStartNextSet())
+        #expect(!viewModel.isResting)
+        _ = await viewModel.finishWorkout()
+    }
+
+    @Test
     func strengthWorkoutStoresMultipleExercisesInOneSession() async throws {
         let viewModel = makeStrengthViewModel()
 
@@ -294,7 +310,8 @@ struct WorkoutSessionViewModelTests {
         #expect(
             viewModel.recordStrengthSet(
                 weightKilograms: 80,
-                repetitions: 8
+                repetitions: 8,
+                startRest: true
             )
         )
 
