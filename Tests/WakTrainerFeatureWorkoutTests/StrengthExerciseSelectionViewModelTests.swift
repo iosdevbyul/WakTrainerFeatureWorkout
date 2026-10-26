@@ -8,6 +8,19 @@ import WakTrainerDomainWorkout
 struct StrengthExerciseSelectionViewModelTests {
 
     @Test
+    func localCatalogIncludesFullLowerBodyAndUniqueIdentifiers() async throws {
+        let exercises = try await LocalStrengthExerciseCatalogRepository().fetchExercises()
+        let identifiers = Set(exercises.map(\.id))
+        #expect(exercises.count >= 35)
+        #expect(identifiers.count == exercises.count)
+        for id in ["squat", "leg_press", "leg_extension", "seated_leg_curl",
+                   "lying_leg_curl", "romanian_deadlift", "hip_thrust",
+                   "calf_raise", "walking_lunge"] {
+            #expect(identifiers.contains(id))
+        }
+    }
+
+    @Test
     func loadExercisesReturnsStrengthExerciseCatalog()
         async {
         let expected = [
