@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import WakTrainerCoreModels
 import WakTrainerDomainWorkout
 import WakTrainerFeatureTimer
@@ -303,6 +304,16 @@ struct WorkoutSessionView: View {
                 )
             }
             .scrollDismissesKeyboard(.interactively)
+            .simultaneousGesture(
+                TapGesture().onEnded {
+                    UIApplication.shared.sendAction(
+                        #selector(UIResponder.resignFirstResponder),
+                        to: nil,
+                        from: nil,
+                        for: nil
+                    )
+                }
+            )
         }
     }
 
