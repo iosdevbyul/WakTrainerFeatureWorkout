@@ -334,6 +334,12 @@ private struct HistoricalWorkoutReportView: View {
         ))
     }
 
+    private var reportRevision: String {
+        let pauses = restoreModel.session.timing.pauseIntervals.map { "\($0.startDate.timeIntervalSince1970)-\($0.endDate.timeIntervalSince1970)" }.joined(separator: "|")
+        let sets = restoreModel.session.exerciseRecords.flatMap(\.strengthSets).map { "\($0.id)-\($0.weightKilograms ?? -1)-\($0.repetitions ?? -1)-\($0.isWarmup)" }.joined(separator: "|")
+        return pauses + ":" + sets
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             if restoreModel.canRestore || restoreModel.canUndo || (editStorage != nil && restoreModel.session.exerciseRecords.contains(where: { $0.kind == .strength })) {
@@ -370,9 +376,7 @@ private struct HistoricalWorkoutReportView: View {
             ) {
                 dismiss()
             }
-            .id(restoreModel.session.timing.pauseIntervals
-                .map { "\($0.startDate.timeIntervalSince1970)-\($0.endDate.timeIntervalSince1970)" }
-                .joined(separator: "|"))
+            .id(reportRevision)
         }
         .sheet(isPresented: $showingRestore) {
             WorkoutPauseRestoreSheet(viewModel: restoreModel)
