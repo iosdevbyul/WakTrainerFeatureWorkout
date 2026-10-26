@@ -522,6 +522,39 @@ struct WorkoutSessionViewModelTests {
             session.timing.elapsedDuration
                 > session.timing.activeDuration
         )
+        #expect(session.timing.pauseIntervals.count == 1)
+        if let pause = session.timing.pauseIntervals.first {
+            #expect(pause.startDate >= session.timing.startDate)
+            #expect(pause.endDate <= (session.timing.endDate ?? .distantFuture))
+            #expect(pause.duration >= 0.1)
+        }
+    }
+
+    @Test
+    func finishingDuringPauseClosesIntervalAtWorkoutEnd() async throws {
+        let viewModel = WorkoutSessionViewModel(
+            workout: WorkoutDefinition(
+                id: "cycling",
+                name: "Cycling",
+                category: .cardio,
+                type: .dynamicWorkout
+            ),
+            healthKitManager: MockHealthKitManager(
+                snapshot: HealthSnapshot(),
+                finalHealthData: WorkoutHealthData()
+            ),
+            locationManager: MockWorkoutLocationManager(),
+            timerManager: TimerManager()
+        )
+        await viewModel.startWorkout()
+        viewModel.pauseWorkout()
+        try await Task.sleep(nanoseconds: 100_000_000)
+        let session = await viewModel.finishWorkout()
+
+        #expect(session.timing.pauseIntervals.count == 1)
+        let pause = try #require(session.timing.pauseIntervals.first)
+        #expect(pause.duration >= 0.09)
+        #expect(pause.endDate == session.timing.endDate)
     }
 
     @Test
