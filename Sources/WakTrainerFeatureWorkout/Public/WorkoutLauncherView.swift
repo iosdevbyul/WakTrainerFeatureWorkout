@@ -16,6 +16,7 @@ public struct WorkoutLauncherView: View {
         (any WorkoutSessionRepository)?
     private let preferenceStore:
         any WorkoutLauncherPreferenceStore
+    private let resumeRequestID: UUID?
     private let onFinished:
         (WorkoutSession) -> Void
     private let onWorkoutUpdate: ((WorkoutLiveSnapshot) -> Void)?
@@ -25,6 +26,7 @@ public struct WorkoutLauncherView: View {
         weightUnit: WorkoutWeightUnit = .kg,
         strengthLocationPolicy: StrengthWorkoutLocationPolicy = .singleLocation,
         ownerUserID: UUID? = nil,
+        resumeRequestID: UUID? = nil,
         onFinished:
             @escaping (WorkoutSession) -> Void,
         onWorkoutUpdate: ((WorkoutLiveSnapshot) -> Void)? = nil
@@ -42,6 +44,7 @@ public struct WorkoutLauncherView: View {
         let preferenceStore =
             UserDefaultsWorkoutLauncherPreferenceStore()
 
+        self.resumeRequestID = resumeRequestID
         self.maximumHeartRate =
             maximumHeartRate
         self.weightUnit = weightUnit
@@ -95,6 +98,16 @@ public struct WorkoutLauncherView: View {
             await viewModel.loadWorkouts()
             await viewModel
                 .loadRecoverableWorkout()
+            if resumeRequestID != nil {
+                viewModel.openRecoverableWorkout()
+            }
+        }
+        .onChange(of: resumeRequestID) { _, newValue in
+            guard newValue != nil else { return }
+            Task {
+                await viewModel.loadRecoverableWorkout()
+                viewModel.openRecoverableWorkout()
+            }
         }
         .fullScreenCover(
             item:
