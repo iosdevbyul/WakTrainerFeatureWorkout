@@ -212,12 +212,17 @@ final class WorkoutLauncherViewModel:
             self.recoverableSession = nil
             isRecoveryPromptPresented = false
 
-            let remaining =
-                try await sessionRepository
-                    .fetchIncompleteSessions()
-
-            self.recoverableSession =
-                remaining.first
+            // The deletion is committed. A subsequent refresh failure
+            // must not report a failed deletion or keep its Live Activity.
+            do {
+                let remaining =
+                    try await sessionRepository
+                        .fetchIncompleteSessions()
+                self.recoverableSession =
+                    remaining.first
+            } catch {
+                errorMessage = error.localizedDescription
+            }
             return true
         } catch {
             errorMessage =
