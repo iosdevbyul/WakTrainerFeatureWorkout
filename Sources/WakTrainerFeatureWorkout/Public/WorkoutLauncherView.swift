@@ -95,20 +95,9 @@ public struct WorkoutLauncherView: View {
                 viewModel.isExpanded
         )
         .task {
-            // A cold-start Live Activity URL can arrive after the first
-            // launcher render. Never present the ordinary recovery dialog
-            // before URL delivery has had a chance to reach the scene.
-            if resumeRequestID != nil {
-                await viewModel.loadRecoverableWorkout(openDirectly: true)
-            } else {
-                try? await Task.sleep(for: .milliseconds(1200))
-                guard !Task.isCancelled else { return }
-                if resumeRequestID != nil {
-                    await viewModel.loadRecoverableWorkout(openDirectly: true)
-                } else {
-                    await viewModel.loadRecoverableWorkout()
-                }
-            }
+            // Automatically reopen any saved incomplete workout. The former
+            // Resume/Delete UI is retained below but intentionally hidden.
+            await viewModel.loadRecoverableWorkout(openDirectly: true)
             await viewModel.loadWorkouts()
         }
         .onChange(of: resumeRequestID) { _, newValue in
@@ -134,9 +123,9 @@ public struct WorkoutLauncherView: View {
         }
         .confirmationDialog(
             "Resume Workout",
-            isPresented:
-                $viewModel
-                    .isRecoveryPromptPresented,
+            // Keep existing recovery actions available in source for future use,
+            // but do not present the legacy recovery confirmation.
+            isPresented: .constant(false),
             titleVisibility: .visible
         ) {
             Button("Resume") {
