@@ -118,6 +118,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     private var recoveredDistanceBase: Double = 0
     private var recoveryResumeDate: Date?
     private var needsRuntimeRestart = false
+    private var shouldAutoResumeRecoveredSession = false
     private var restoredRouteCoordinates:
         [CLLocationCoordinate2D] = []
     private var restoredRoutePoints:
@@ -976,6 +977,15 @@ final class WorkoutSessionViewModel: ObservableObject {
             timerManager.laps
 
         needsRuntimeRestart = true
+        // TimerManager.restore intentionally restores to .paused.
+        // Only restart sessions that were running at their last checkpoint.
+        shouldAutoResumeRecoveredSession = recentlyCheckpointed && !wasPausedAtCheckpoint
+    }
+
+    func resumeRecoveredWorkoutIfNeeded() {
+        guard shouldAutoResumeRecoveredSession else { return }
+        shouldAutoResumeRecoveredSession = false
+        resumeWorkout()
     }
 
     private func restoreStrengthExerciseRecords(
