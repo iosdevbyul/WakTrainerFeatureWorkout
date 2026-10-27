@@ -194,10 +194,11 @@ final class WorkoutLauncherViewModel:
         }
     }
 
-    func discardRecoverableWorkout() async {
+    @discardableResult
+    func discardRecoverableWorkout() async -> Bool {
         guard let recoverableSession,
               let sessionRepository else {
-            return
+            return false
         }
 
         do {
@@ -217,9 +218,11 @@ final class WorkoutLauncherViewModel:
 
             self.recoverableSession =
                 remaining.first
+            return true
         } catch {
             errorMessage =
                 error.localizedDescription
+            return false
         }
     }
 

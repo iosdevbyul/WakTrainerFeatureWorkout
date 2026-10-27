@@ -126,9 +126,28 @@ public struct WorkoutLauncherView: View {
                 "Delete Saved Workout",
                 role: .destructive
             ) {
-                Task {
-                    await viewModel
-                        .discardRecoverableWorkout()
+                // Only end the Live Activity once the saved workout
+                // was actually deleted. A failed deletion leaves it intact.
+                if let stored = viewModel.recoverableSession {
+                    Task {
+                        let deleted = await viewModel
+                            .discardRecoverableWorkout()
+                        guard deleted else { return }
+                        onWorkoutUpdate?(
+                            WorkoutLiveSnapshot(
+                                kind: stored.session.workout.category == "strength" ? .strength : .cardio,
+                                phase: .finished,
+                                workoutName: stored.session.workout.name,
+                                elapsedSeconds: stored.session.timing.activeDuration,
+                                heartRateBPM: 0,
+                                activeCalories: 0,
+                                distanceMeters: 0,
+                                steps: 0,
+                                currentExerciseName: nil,
+                                completedSets: 0
+                            )
+                        )
+                    }
                 }
             }
 
