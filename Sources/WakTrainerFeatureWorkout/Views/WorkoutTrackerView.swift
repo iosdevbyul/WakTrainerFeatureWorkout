@@ -4,17 +4,20 @@ import WakTrainerCoreModels
 struct WorkoutTrackerView: View {
     @ObservedObject private var viewModel: WorkoutSessionViewModel
 
+    var compact: Bool = false
+
     private let columns = [
         GridItem(.flexible(), spacing: 12),
         GridItem(.flexible(), spacing: 12)
     ]
 
-    init(viewModel: WorkoutSessionViewModel) {
+    init(viewModel: WorkoutSessionViewModel, compact: Bool = false) {
         self.viewModel = viewModel
+        self.compact = compact
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: compact ? 4 : 8) {
             if let error = viewModel.healthDataCollectionError {
                 Label(error, systemImage: "exclamationmark.triangle")
                     .font(.caption)
@@ -24,13 +27,14 @@ struct WorkoutTrackerView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-            LazyVGrid(columns: columns, spacing: 12) {
+            LazyVGrid(columns: columns, spacing: compact ? 8 : 12) {
             MetricCard(
                 title: "Heart Rate",
                 value: viewModel.healthSampleEndDates[.heartRate] == nil ? "—" : "\(Int(viewModel.heartRate))",
                 unit: "BPM",
                 iconName: "heart.fill",
-                iconColor: .red
+                iconColor: .red,
+                compact: compact
             )
 
             MetricCard(
@@ -38,7 +42,8 @@ struct WorkoutTrackerView: View {
                 value: viewModel.healthSampleEndDates[.activeEnergyBurned] == nil ? "—" : "\(Int(viewModel.activeCalories))",
                 unit: "kcal",
                 iconName: "flame.fill",
-                iconColor: .orange
+                iconColor: .orange,
+                compact: compact
             )
 
             MetricCard(
@@ -46,7 +51,8 @@ struct WorkoutTrackerView: View {
                 value: viewModel.healthSampleEndDates[.stepCount] == nil ? "—" : "\(Int(viewModel.stepCount))",
                 unit: "steps",
                 iconName: "shoeprints.fill",
-                iconColor: .blue
+                iconColor: .blue,
+                compact: compact
             )
 
             MetricCard(
@@ -54,7 +60,8 @@ struct WorkoutTrackerView: View {
                 value: viewModel.healthSampleEndDates[.distanceWalkingRunning] == nil && viewModel.healthSampleEndDates[.distanceCycling] == nil ? "—" : String(format: "%.2f", viewModel.distanceKilometers),
                 unit: "km",
                 iconName: "figure.walk",
-                iconColor: .green
+                iconColor: .green,
+                compact: compact
             )
             }
         }
