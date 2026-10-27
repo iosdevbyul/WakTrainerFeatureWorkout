@@ -126,6 +126,9 @@ final class WorkoutSessionViewModel: ObservableObject {
     // MARK: - Private
 
     private var healthTask: Task<Void, Never>?
+    private var externalHeartRateTask: Task<Void, Never>?
+    private var externalHeartRateSession: AnyObject?
+    private var externalHeartRateLatest: Double?
     private var simulationTask: Task<Void, Never>?
     private var simulator = DebugWorkoutSimulator()
     private var useSimulation: Bool {
@@ -182,6 +185,7 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     deinit {
         healthTask?.cancel()
+        externalHeartRateTask?.cancel()
         simulationTask?.cancel()
         checkpointTask?.cancel()
         snapshotTimeoutTask?.cancel()
@@ -309,6 +313,14 @@ final class WorkoutSessionViewModel: ObservableObject {
             startSimulation()
         } else {
             startHealthObservation()
+            if #available(iOS 26.0, *) {
+                if healthKitManager is HealthKitManager {
+                    let requestedID = sessionID
+                    Task { [weak self] in
+                        await self?.startExternalHeartRate(for: requestedID)
+                    }
+                }
+            }
         }
         await saveCheckpoint()
         startCheckpointLoop()
@@ -455,6 +467,9 @@ final class WorkoutSessionViewModel: ObservableObject {
         simulationTask?.cancel()
         simulationTask = nil
 
+        if #available(iOS 26.0, *) {
+            await stopExternalHeartRate()
+        }
         await healthKitManager
             .stopObservingData()
     }
@@ -730,6 +745,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         healthDataCollectionError = nil
         storageError = nil
         healthSampleEndDates = [:]
+        externalHeartRateLatest = nil
 
         restTimerManager.stop()
         isResting = false
@@ -1025,6 +1041,61 @@ final class WorkoutSessionViewModel: ObservableObject {
             activeRecord.strengthSets
     }
 
+    // MARK: - External iPhone heart rate (AirPods Pro 3 / iOS 26+)
+
+    @available(iOS 26.0, *)
+    private func startExternalHeartRate(for requestedID: UUID) async {
+        guard !useSimulation,
+              timerState != .idle,
+              requestedID == sessionID,
+              externalHeartRateSession == nil else { return }
+        let collector = ExternalHeartRateWorkoutSession()
+        externalHeartRateSession = collector
+        do {
+            let stream = try await collector.start()
+            guard requestedID == sessionID, timerState != .idle else {
+                try? await collector.stop()
+                if externalHeartRateSession === collector {
+                    externalHeartRateSession = nil
+                }
+                return
+            }
+            externalHeartRateTask?.cancel()
+            externalHeartRateTask = Task { [weak self] in
+                for await bpm in stream {
+                    guard !Task.isCancelled, let self else { break }
+                    guard self.sessionID == requestedID,
+                          self.externalHeartRateSession === collector else { break }
+                    self.externalHeartRateLatest = bpm
+                    self.heartRate = bpm
+                }
+            }
+        } catch {
+            if externalHeartRateSession === collector {
+                externalHeartRateSession = nil
+            }
+            // An unavailable sensor must never prevent a workout from starting.
+            healthDataCollectionError = "External heart rate unavailable: \(error.localizedDescription)"
+        }
+    }
+
+    @available(iOS 26.0, *)
+    private func stopExternalHeartRate() async {
+        externalHeartRateTask?.cancel()
+        externalHeartRateTask = nil
+        externalHeartRateLatest = nil
+        guard let collector = externalHeartRateSession as? ExternalHeartRateWorkoutSession else {
+            externalHeartRateSession = nil
+            return
+        }
+        externalHeartRateSession = nil
+        do {
+            try await collector.stop()
+        } catch {
+            healthDataCollectionError = "External heart rate session could not finish: \(error.localizedDescription)"
+        }
+    }
+
     // MARK: - Health Observation
 
     private func startHealthObservation() {
@@ -1047,7 +1118,7 @@ final class WorkoutSessionViewModel: ObservableObject {
 
                 self.healthSampleEndDates = snapshot.sampleEndDates
                 self.heartRate =
-                    snapshot.heartRate
+                    self.externalHeartRateLatest ?? snapshot.heartRate
                 self.activeCalories =
                     self
                         .recoveredActiveCaloriesBase
