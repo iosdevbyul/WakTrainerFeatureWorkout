@@ -214,6 +214,38 @@ struct WorkoutSessionPersistenceTests {
         #expect(model.elapsedTime >= 21 * 60)
         #expect(model.elapsedTime <= 23 * 60)
         #expect(model.timerState == .paused)
+        model.resumeRecoveredWorkoutIfNeeded()
+        #expect(model.timerState == .running)
+    }
+
+    @Test("a deliberately paused checkpoint stays paused on recovery")
+    func pausedCheckpointDoesNotAutoResume() {
+        let now = Date()
+        let start = now.addingTimeInterval(-1200)
+        let pauseStart = now.addingTimeInterval(-250)
+        let checkpoint = StoredWorkoutSession(
+            session: WorkoutSession(
+                workout: WorkoutIdentity(workoutID: "strength_training",
+                                         name: "Strength Training",
+                                         category: "strength", type: .staticWorkout),
+                timing: WorkoutTiming(startDate: start, endDate: nil,
+                                      elapsedDuration: 1200, activeDuration: 950,
+                                      pausedDuration: 250,
+                                      pauseIntervals: [
+                                        WorkoutPauseInterval(startDate: pauseStart, endDate: now)
+                                      ]),
+                health: WorkoutHealthData()
+            ),
+            persistenceState: .inProgress, syncState: .pending,
+            updatedAt: now
+        )
+        let model = WorkoutSessionViewModel(
+            workout: strengthWorkout, restoredSession: checkpoint,
+            healthKitManager: PersistenceHealthManager(),
+            timerManager: TimerManager(), restTimerManager: TimerManager()
+        )
+        model.resumeRecoveredWorkoutIfNeeded()
+        #expect(model.timerState == .paused)
     }
 
     @Test("checkpoint and completed strength session share one top level session ID")
