@@ -1,4 +1,5 @@
 import SwiftUI
+import MapKit
 import UIKit
 import WakTrainerCoreModels
 import WakTrainerDomainWorkout
@@ -15,6 +16,8 @@ struct WorkoutSessionView: View {
         false
     @State private var didPresentInitialExercisePicker = false
     @State private var isFullScreenMapPresented = false
+    @State private var workoutMapMode: WorkoutMapMode = .twoD
+    @State private var workoutMapCamera: MapCameraPosition = .automatic
     @State private var pendingWorkoutAction: WorkoutActionConfirmation?
 
     private enum WorkoutActionConfirmation: String, Identifiable {
@@ -259,25 +262,107 @@ struct WorkoutSessionView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .fullScreenCover(isPresented: $isFullScreenMapPresented) {
-            ZStack(alignment: .topTrailing) {
-                WorkoutMapView(
-                    workoutType: workout.type,
-                    paceSegments: currentPaceSegments,
-                    followsCurrentPosition: true
-                )
-                .ignoresSafeArea()
+            NavigationStack {
+                ZStack(alignment: .bottom) {
+                    Map(position: $workoutMapCamera) {
+                        if viewModel.routeCoordinates.count >= 2 {
+                            MapPolyline(coordinates: viewModel.routeCoordinates)
+                                .stroke(.green, lineWidth: 5)
+                        }
+                        if let current = viewModel.routeCoordinates.last {
+                            Annotation("Current", coordinate: current, anchor: .center) {
+                                Image(systemName: "location.north.circle.fill")
+                                    .font(.system(size: 34))
+                                    .foregroundStyle(.green)
+                                    .rotationEffect(.degrees(workoutHeading))
+                            }
+                        }
+                    }
+                    .mapStyle(workoutMapStyle)
+                    .mapControls {
+                        MapCompass()
+                        MapPitchToggle()
+                    }
+                    .ignoresSafeArea(edges: .bottom)
 
-                Button {
-                    isFullScreenMapPresented = false
-                } label: {
-                    Label("Close Map", systemImage: "xmark.circle.fill")
-                        .font(.headline)
-                        .padding(12)
-                        .background(.regularMaterial, in: Capsule())
+                    if workoutMapMode == .runner {
+                        Image(systemName: "figure.run")
+                            .font(.system(size: 58, weight: .medium))
+                            .foregroundStyle(.green)
+                            .shadow(color: .black, radius: 5)
+                            .padding(.bottom, 110)
+                            .allowsHitTesting(false)
+                    }
                 }
-                .padding(20)
+                .safeAreaInset(edge: .bottom) {
+                    Picker("Map Mode", selection: $workoutMapMode) {
+                        ForEach(WorkoutMapMode.allCases) { mode in
+                            Text(mode.rawValue).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .padding(12)
+                    .frame(maxWidth: .infinity)
+                    .background(.regularMaterial)
+                    .accessibilityIdentifier("workout.map.mode")
+                }
+                .navigationTitle("Workout Map")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Done") { isFullScreenMapPresented = false }
+                    }
+                }
+                .onAppear { updateWorkoutMapCamera() }
+                .onChange(of: workoutMapMode) { _, _ in updateWorkoutMapCamera() }
+                .onChange(of: viewModel.routeCoordinates.count) { _, _ in
+                    updateWorkoutMapCamera()
+                }
             }
         }
+    }
+
+    private enum WorkoutMapMode: String, CaseIterable, Identifiable {
+        case twoD = "2D"
+        case follow = "3D Follow"
+        case aerial = "3D Aerial"
+        case runner = "Runner View"
+        var id: Self { self }
+    }
+
+    private var workoutMapStyle: MapStyle {
+        switch workoutMapMode {
+        case .twoD: .standard(elevation: .flat)
+        case .follow, .runner: .standard(elevation: .realistic)
+        case .aerial: .imagery(elevation: .realistic)
+        }
+    }
+
+    private var workoutHeading: Double {
+        let points = viewModel.routeCoordinates
+        guard points.count >= 2 else { return 0 }
+        let first = points[points.count - 2]
+        let last = points[points.count - 1]
+        let latitude1 = first.latitude * .pi / 180
+        let latitude2 = last.latitude * .pi / 180
+        let longitudeDifference = (last.longitude - first.longitude) * .pi / 180
+        let y = sin(longitudeDifference) * cos(latitude2)
+        let x = cos(latitude1) * sin(latitude2) -
+            sin(latitude1) * cos(latitude2) * cos(longitudeDifference)
+        return (atan2(y, x) * 180 / .pi + 360).truncatingRemainder(dividingBy: 360)
+    }
+
+    private func updateWorkoutMapCamera() {
+        guard let current = viewModel.routeCoordinates.last else { return }
+        let heading = workoutMapMode == .twoD ? 0 : workoutHeading
+        let pitch: Double = workoutMapMode == .twoD ? 0 :
+            (workoutMapMode == .runner ? 72 : 55)
+        workoutMapCamera = .camera(MapCamera(
+            centerCoordinate: current,
+            distance: workoutMapMode == .runner ? 95 : 350,
+            heading: heading,
+            pitch: pitch
+        ))
     }
 
     // MARK: - Strength
