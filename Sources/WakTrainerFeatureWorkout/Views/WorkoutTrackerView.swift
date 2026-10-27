@@ -11,8 +11,9 @@ struct WorkoutTrackerView: View {
         GridItem(.flexible(), spacing: 12)
     ]
 
-    init(viewModel: WorkoutSessionViewModel) {
+    init(viewModel: WorkoutSessionViewModel, compact: Bool = false) {
         self.viewModel = viewModel
+        self.compact = compact
     }
 
     var body: some View {
