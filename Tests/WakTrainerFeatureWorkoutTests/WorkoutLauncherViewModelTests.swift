@@ -321,6 +321,52 @@ struct WorkoutLauncherViewModelTests {
         #expect(recovered == stored)
     }
 
+    @Test("failed deletion must not be reported as discarded")
+    func failedRecoveryDeletionPreservesWorkout() async {
+        let stored = makeStoredSession(
+            workoutID: "running",
+            name: "Running",
+            category: .cardio,
+            type: .dynamicWorkout
+        )
+        let repository = LauncherMockWorkoutSessionRepository(
+            incomplete: [stored],
+            failDeletion: true
+        )
+        let viewModel = makeViewModel(sessionRepository: repository)
+        await viewModel.loadRecoverableWorkout()
+
+        let deleted = await viewModel.discardRecoverableWorkout()
+
+        #expect(!deleted)
+        #expect(repository.deletedIDs.isEmpty)
+        #expect(viewModel.recoverableSession == stored)
+        #expect(viewModel.errorMessage != nil)
+    }
+
+    @Test("a failed refresh after deletion still reports successful discard")
+    func refreshFailureAfterDeletionIsNotDeletionFailure() async {
+        let stored = makeStoredSession(
+            workoutID: "running",
+            name: "Running",
+            category: .cardio,
+            type: .dynamicWorkout
+        )
+        let repository = LauncherMockWorkoutSessionRepository(
+            incomplete: [stored]
+        )
+        let viewModel = makeViewModel(sessionRepository: repository)
+        await viewModel.loadRecoverableWorkout()
+        repository.failIncompleteFetch = true
+
+        let deleted = await viewModel.discardRecoverableWorkout()
+
+        #expect(deleted)
+        #expect(repository.deletedIDs == [stored.session.id])
+        #expect(viewModel.recoverableSession == nil)
+        #expect(viewModel.errorMessage != nil)
+    }
+
     @Test("browse all opens workout catalog")
     func browseAllOpensCatalog() {
         let viewModel = makeViewModel()
@@ -365,8 +411,9 @@ struct WorkoutLauncherViewModelTests {
 
         await viewModel
             .loadRecoverableWorkout()
-        await viewModel
+        let deleted = await viewModel
             .discardRecoverableWorkout()
+        #expect(deleted)
 
         #expect(
             sessionRepository.deletedIDs
@@ -583,13 +630,17 @@ private final class LauncherMockWorkoutSessionRepository:
         [StoredWorkoutSession]
     private(set) var deletedIDs:
         [UUID] = []
+    private let failDeletion: Bool
+    var failIncompleteFetch = false
 
     init(
         incomplete:
             [StoredWorkoutSession] = [],
         completed:
-            [StoredWorkoutSession] = []
+            [StoredWorkoutSession] = [],
+        failDeletion: Bool = false
     ) {
+        self.failDeletion = failDeletion
         self.incomplete =
             incomplete
         self.completed =
@@ -625,7 +676,10 @@ private final class LauncherMockWorkoutSessionRepository:
     func fetchIncompleteSessions()
         async throws
         -> [StoredWorkoutSession] {
-        incomplete
+        if failIncompleteFetch {
+            throw LauncherRepositoryTestError.simulated
+        }
+        return incomplete
     }
 
     func fetchCompletedSessions(
@@ -646,6 +700,9 @@ private final class LauncherMockWorkoutSessionRepository:
     func deleteSession(
         id: UUID
     ) async throws {
+        if failDeletion {
+            throw LauncherRepositoryTestError.simulated
+        }
         deletedIDs.append(id)
         incomplete.removeAll {
             $0.session.id == id
@@ -660,4 +717,8 @@ private final class LauncherMockWorkoutSessionRepository:
         incomplete.removeAll()
         completed.removeAll()
     }
+}
+
+private enum LauncherRepositoryTestError: Error {
+    case simulated
 }
