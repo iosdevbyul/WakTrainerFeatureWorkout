@@ -40,10 +40,12 @@ struct WorkoutReportView: View {
 
                 if let strength = viewModel.report.strength {
                     strengthSection(strength)
+                    strengthInsightsSection
                 }
 
                 if let cardio = viewModel.report.cardio {
                     cardioSection(cardio)
+                    cardioInsightsSection(cardio)
                 }
 
                 detailsSection
@@ -418,6 +420,58 @@ struct WorkoutReportView: View {
             format: "%.0f m",
             split.distanceMeters
         )
+    }
+
+    // Insights are computed strictly from saved workout data; missing
+    // sensor metrics remain unavailable rather than inferred.
+    private var strengthInsightsSection: some View {
+        let exercises = viewModel.strengthExerciseRecords
+        let sets = exercises.flatMap { $0.strengthSets }.filter(\.isCompleted)
+        let working = sets.filter { !$0.isWarmup }
+        let reps = working.reduce(0) { $0 + ($1.repetitions ?? 0) }
+        let volume = working.reduce(0.0) {
+            $0 + max(0, $1.weightKilograms ?? 0) * Double(max(0, $1.repetitions ?? 0))
+        }
+        return reportSection(title: "Strength Analysis") {
+            LazyVGrid(columns: gridColumns, spacing: 12) {
+                reportMetric(title: "Exercises", value: "\(exercises.count)")
+                reportMetric(title: "Warm-up Sets", value: "\(sets.count - working.count)")
+                reportMetric(title: "Avg Reps / Working Set",
+                             value: working.isEmpty ? "-" : String(format: "%.1f", Double(reps) / Double(working.count)))
+                reportMetric(title: "Working Set Volume",
+                             value: formatNumber(weightUnit.fromKilograms(volume), suffix: " \(weightUnit.rawValue)"))
+                reportMetric(title: "Sets / Exercise",
+                             value: exercises.isEmpty ? "-" : String(format: "%.1f", Double(sets.count) / Double(exercises.count)))
+                reportMetric(title: "Training Density",
+                             value: viewModel.report.summary.activeDuration > 0 ?
+                                 String(format: "%.1f sets/min", Double(working.count) * 60 / viewModel.report.summary.activeDuration) : "-")
+            }
+            Text("Analysis excludes warm-up sets from working volume and repetition averages. Historical progress requires comparisons with earlier sessions.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func cardioInsightsSection(_ cardio: WorkoutCardioReport) -> some View {
+        let summary = viewModel.report.summary
+        let active = summary.activeDuration
+        let elapsed = summary.elapsedDuration
+        return reportSection(title: "Cardio Analysis") {
+            LazyVGrid(columns: gridColumns, spacing: 12) {
+                reportMetric(title: "Moving Time Share",
+                             value: elapsed > 0 ? String(format: "%.0f%%", 100 * active / elapsed) : "-")
+                reportMetric(title: "Calories / Active Minute",
+                             value: active > 0 && summary.activeCalories != nil ?
+                                 String(format: "%.1f kcal/min", (summary.activeCalories ?? 0) * 60 / active) : "-")
+                reportMetric(title: "Steps / Active Minute",
+                             value: active > 0 && summary.stepCount != nil ?
+                                 String(format: "%.0f steps/min", (summary.stepCount ?? 0) * 60 / active) : "-")
+                reportMetric(title: "Split Count", value: "\(cardio.splits.count)")
+            }
+            Text("Statistics use recorded values only. Device and location accuracy may affect results.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 
     private var detailsSection: some View {
