@@ -95,13 +95,25 @@ public struct WorkoutLauncherView: View {
                 viewModel.isExpanded
         )
         .task {
+            // A cold-start Live Activity URL can arrive after the first
+            // launcher render. Never present the ordinary recovery dialog
+            // before URL delivery has had a chance to reach the scene.
+            if resumeRequestID != nil {
+                await viewModel.loadRecoverableWorkout(openDirectly: true)
+            } else {
+                try? await Task.sleep(for: .milliseconds(1200))
+                guard !Task.isCancelled else { return }
+                if resumeRequestID != nil {
+                    await viewModel.loadRecoverableWorkout(openDirectly: true)
+                } else {
+                    await viewModel.loadRecoverableWorkout()
+                }
+            }
             await viewModel.loadWorkouts()
-            await viewModel.loadRecoverableWorkout(
-                openDirectly: resumeRequestID != nil
-            )
         }
         .onChange(of: resumeRequestID) { _, newValue in
             guard newValue != nil else { return }
+            viewModel.isRecoveryPromptPresented = false
             Task {
                 await viewModel.loadRecoverableWorkout(openDirectly: true)
             }
