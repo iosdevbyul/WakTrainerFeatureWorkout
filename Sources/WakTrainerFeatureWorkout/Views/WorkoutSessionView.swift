@@ -254,7 +254,9 @@ struct WorkoutSessionView: View {
                     .padding(.horizontal, 20)
                     .padding(.bottom, 4)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Without an explicit alignment, the VStack's intrinsic content
+            // is centered vertically in the GeometryReader's full height.
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
         .fullScreenCover(isPresented: $isFullScreenMapPresented) {
             ZStack(alignment: .topTrailing) {
