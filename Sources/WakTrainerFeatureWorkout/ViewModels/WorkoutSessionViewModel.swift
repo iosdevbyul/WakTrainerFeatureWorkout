@@ -314,7 +314,12 @@ final class WorkoutSessionViewModel: ObservableObject {
         } else {
             startHealthObservation()
             if #available(iOS 26.0, *) {
-                await startExternalHeartRate(for: sessionID)
+                if healthKitManager is HealthKitManager {
+                    let requestedID = sessionID
+                    Task { [weak self] in
+                        await self?.startExternalHeartRate(for: requestedID)
+                    }
+                }
             }
         }
         await saveCheckpoint()
@@ -1040,7 +1045,10 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     @available(iOS 26.0, *)
     private func startExternalHeartRate(for requestedID: UUID) async {
-        guard !useSimulation, externalHeartRateSession == nil else { return }
+        guard !useSimulation,
+              timerState != .idle,
+              requestedID == sessionID,
+              externalHeartRateSession == nil else { return }
         let collector = ExternalHeartRateWorkoutSession()
         externalHeartRateSession = collector
         do {
