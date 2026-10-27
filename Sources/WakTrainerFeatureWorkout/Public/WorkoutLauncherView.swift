@@ -96,17 +96,14 @@ public struct WorkoutLauncherView: View {
         )
         .task {
             await viewModel.loadWorkouts()
-            await viewModel
-                .loadRecoverableWorkout()
-            if resumeRequestID != nil {
-                viewModel.openRecoverableWorkout()
-            }
+            await viewModel.loadRecoverableWorkout(
+                openDirectly: resumeRequestID != nil
+            )
         }
         .onChange(of: resumeRequestID) { _, newValue in
             guard newValue != nil else { return }
             Task {
-                await viewModel.loadRecoverableWorkout()
-                viewModel.openRecoverableWorkout()
+                await viewModel.loadRecoverableWorkout(openDirectly: true)
             }
         }
         .fullScreenCover(

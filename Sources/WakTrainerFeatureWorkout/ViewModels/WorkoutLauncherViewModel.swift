@@ -129,24 +129,23 @@ final class WorkoutLauncherViewModel:
         }
     }
 
-    func loadRecoverableWorkout() async {
+    func loadRecoverableWorkout(openDirectly: Bool = false) async {
         guard destination == nil,
-              let sessionRepository else {
-            return
-        }
+              let sessionRepository else { return }
 
         do {
-            let incomplete =
-                try await sessionRepository
-                    .fetchIncompleteSessions()
-
-            recoverableSession =
-                incomplete.first
-            isRecoveryPromptPresented =
-                recoverableSession != nil
+            let incomplete = try await sessionRepository.fetchIncompleteSessions()
+            recoverableSession = incomplete.first
+            if openDirectly, recoverableSession != nil {
+                // Never present the recovery confirmation first: a pending
+                // confirmationDialog can prevent the full-screen workout cover.
+                isRecoveryPromptPresented = false
+                openRecoverableWorkout()
+            } else {
+                isRecoveryPromptPresented = recoverableSession != nil
+            }
         } catch {
-            errorMessage =
-                error.localizedDescription
+            errorMessage = error.localizedDescription
         }
     }
 
