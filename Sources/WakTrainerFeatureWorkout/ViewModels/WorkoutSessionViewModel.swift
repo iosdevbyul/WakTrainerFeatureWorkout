@@ -1067,7 +1067,7 @@ final class WorkoutSessionViewModel: ObservableObject {
                 externalHeartRateSession = nil
             }
             // An unavailable sensor must never prevent a workout from starting.
-            healthDataCollectionError = "External heart rate unavailable: \\(error.localizedDescription)"
+            healthDataCollectionError = "External heart rate unavailable: \(error.localizedDescription)"
         }
     }
 
@@ -1084,7 +1084,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         do {
             try await collector.stop()
         } catch {
-            healthDataCollectionError = "External heart rate session could not finish: \\(error.localizedDescription)"
+            healthDataCollectionError = "External heart rate session could not finish: \(error.localizedDescription)"
         }
     }
 
