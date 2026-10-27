@@ -10,6 +10,7 @@ struct LocalWorkoutCatalogRepository: WorkoutCatalogRepository {
             WorkoutDefinition(id: "running", name: "Running", category: .cardio, type: .dynamicWorkout),
             WorkoutDefinition(id: "walking", name: "Walking", category: .cardio, type: .dynamicWorkout),
             WorkoutDefinition(id: "cycling", name: "Cycling", category: .cardio, type: .dynamicWorkout),
+            WorkoutDefinition(id: "strength_training", name: "Strength Training", category: .strength, type: .staticWorkout),
             WorkoutDefinition(id: "hiking", name: "Hiking", category: .cardio, type: .dynamicWorkout),
             WorkoutDefinition(id: "trail_running", name: "Trail Running", category: .cardio, type: .dynamicWorkout),
             WorkoutDefinition(id: "jogging", name: "Jogging", category: .cardio, type: .dynamicWorkout),
@@ -45,8 +46,7 @@ struct LocalWorkoutCatalogRepository: WorkoutCatalogRepository {
             WorkoutDefinition(id: "indoor_climbing", name: "Indoor Climbing", category: .cardio, type: .staticWorkout),
             WorkoutDefinition(id: "stationary_ski_erg", name: "Ski Erg", category: .cardio, type: .staticWorkout),
             WorkoutDefinition(id: "recumbent_bike", name: "Recumbent Bike", category: .cardio, type: .staticWorkout),
-            WorkoutDefinition(id: "arm_ergometer", name: "Arm Ergometer", category: .cardio, type: .staticWorkout),
-            WorkoutDefinition(id: "strength_training", name: "Strength Training", category: .strength, type: .staticWorkout)
+            WorkoutDefinition(id: "arm_ergometer", name: "Arm Ergometer", category: .cardio, type: .staticWorkout)
         ]
     }
 }
