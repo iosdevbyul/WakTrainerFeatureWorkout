@@ -14,6 +14,7 @@ struct WorkoutSessionView: View {
     @State private var isExercisePickerPresented =
         false
     @State private var didPresentInitialExercisePicker = false
+    @State private var isFullScreenMapPresented = false
     @State private var pendingWorkoutAction: WorkoutActionConfirmation?
 
     private enum WorkoutActionConfirmation: String, Identifiable {
@@ -218,29 +219,63 @@ struct WorkoutSessionView: View {
 
     // MARK: - Cardio
 
-    private var cardioSessionContent:
-        some View {
-        VStack(spacing: 12) {
-            header
-            controlButtons
-                .padding(.horizontal, 20)
+    private var cardioSessionContent: some View {
+        GeometryReader { geometry in
+            VStack(spacing: 10) {
+                header
+                controlButtons
+                    .padding(.horizontal, 20)
 
-            Spacer(minLength: 0)
+                if workout.requiresLocationTracking {
+                    WorkoutMapView(
+                        workoutType: workout.type,
+                        paceSegments: currentPaceSegments,
+                        followsCurrentPosition: true
+                    )
+                    .frame(height: max(120, min(geometry.size.height * 0.35, 250)))
+                    .clipShape(RoundedRectangle(cornerRadius: 18))
+                    .overlay(alignment: .topTrailing) {
+                        Button {
+                            isFullScreenMapPresented = true
+                        } label: {
+                            Label("Expand Map", systemImage: "arrow.up.left.and.arrow.down.right")
+                                .font(.caption.bold())
+                                .padding(10)
+                                .background(.regularMaterial, in: Capsule())
+                        }
+                        .padding(10)
+                    }
+                    .padding(.horizontal, 20)
+                    .onTapGesture { isFullScreenMapPresented = true }
+                }
 
-            VStack(spacing: 16) {
-                WorkoutTrackerView(
-                    viewModel:
-                        viewModel
-                )
+                Spacer(minLength: 0)
+
+                WorkoutTrackerView(viewModel: viewModel)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 12)
             }
-            .padding(
-                .horizontal,
-                20
-            )
-            .padding(
-                .bottom,
-                24
-            )
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+        .fullScreenCover(isPresented: $isFullScreenMapPresented) {
+            ZStack(alignment: .topTrailing) {
+                WorkoutMapView(
+                    workoutType: workout.type,
+                    paceSegments: currentPaceSegments,
+                    followsCurrentPosition: true
+                )
+                .ignoresSafeArea()
+
+                Button {
+                    isFullScreenMapPresented = false
+                } label: {
+                    Label("Close Map", systemImage: "xmark.circle.fill")
+                        .font(.headline)
+                        .padding(12)
+                        .background(.regularMaterial, in: Capsule())
+                }
+                .padding(20)
+            }
         }
     }
 
@@ -552,23 +587,8 @@ struct WorkoutSessionView: View {
 
     // MARK: - Background
 
-    @ViewBuilder
-    private var sessionBackground:
-        some View {
-        if workout
-            .requiresLocationTracking {
-            WorkoutMapView(
-                workoutType:
-                    workout.type,
-                paceSegments:
-                    currentPaceSegments,
-                followsCurrentPosition: true
-            )
-            .ignoresSafeArea()
-        } else {
-            Color.clear
-                .ignoresSafeArea()
-        }
+    private var sessionBackground: some View {
+        Color.clear.ignoresSafeArea()
     }
 
     // MARK: - Controls
