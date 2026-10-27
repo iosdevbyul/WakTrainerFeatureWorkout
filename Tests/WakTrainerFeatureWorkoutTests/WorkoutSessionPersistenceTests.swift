@@ -190,7 +190,7 @@ struct WorkoutSessionPersistenceTests {
     }
 
     @Test("recent running checkpoint restores elapsed wall time after process termination")
-    func recentRunningCheckpointRestoresWallTime() {
+    func recentRunningCheckpointRestoresWallTime() async throws {
         let now = Date()
         let start = now.addingTimeInterval(-22 * 60)
         let checkpoint = StoredWorkoutSession(
@@ -215,6 +215,8 @@ struct WorkoutSessionPersistenceTests {
         #expect(model.elapsedTime <= 23 * 60)
         #expect(model.timerState == .paused)
         model.resumeRecoveredWorkoutIfNeeded()
+        // timerState is delivered asynchronously by Combine receive(on: .main).
+        try await Task.sleep(for: .milliseconds(150))
         #expect(model.timerState == .running)
     }
 
