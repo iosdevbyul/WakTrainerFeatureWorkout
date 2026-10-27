@@ -112,6 +112,7 @@ struct WorkoutSessionView: View {
             }
         }
         .onAppear {
+            viewModel.resumeRecoveredWorkoutIfNeeded()
             guard workout.category == .strength,
                   viewModel.timerState == .idle,
                   viewModel.activeStrengthExercise == nil,
