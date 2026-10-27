@@ -14,6 +14,13 @@ struct WorkoutSessionView: View {
     @State private var isExercisePickerPresented =
         false
     @State private var didPresentInitialExercisePicker = false
+    @State private var pendingWorkoutAction: WorkoutActionConfirmation?
+
+    private enum WorkoutActionConfirmation: String, Identifiable {
+        case pause
+        case finish
+        var id: String { rawValue }
+    }
 
     private let strengthLocationPolicy: StrengthWorkoutLocationPolicy
     private let weightUnit: WorkoutWeightUnit
@@ -111,6 +118,33 @@ struct WorkoutSessionView: View {
             didPresentInitialExercisePicker = true
             isExercisePickerPresented = true
         }
+        .confirmationDialog(
+            "Confirm Workout Action",
+            isPresented: Binding(
+                get: { pendingWorkoutAction != nil },
+                set: { if !$0 { pendingWorkoutAction = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            if pendingWorkoutAction == .pause {
+                Button("Pause Workout") {
+                    pendingWorkoutAction = nil
+                    viewModel.pauseWorkout()
+                }
+            } else if pendingWorkoutAction == .finish {
+                Button("Finish Workout", role: .destructive) {
+                    pendingWorkoutAction = nil
+                    Task { await finishCurrentWorkout() }
+                }
+            }
+            Button("Keep Exercising", role: .cancel) {
+                pendingWorkoutAction = nil
+            }
+        } message: {
+            Text(pendingWorkoutAction == .pause
+                ? "Pause the current workout?"
+                : "End this workout and save its report?")
+        }
         .sheet(
             isPresented:
                 $isExercisePickerPresented
@@ -126,14 +160,12 @@ struct WorkoutSessionView: View {
                     exercise,
                     equipment in
 
-                    let didSelect = viewModel.beginStrengthExercise(
+                    _ = viewModel.beginStrengthExercise(
                         exercise,
                         equipment: equipment
                     )
                     isExercisePickerPresented = false
-                    if didSelect && viewModel.timerState == .idle {
-                        Task { await viewModel.startWorkout() }
-                    }
+                    // Selecting an exercise should never start recording.
                 }
             )
         }
@@ -188,18 +220,18 @@ struct WorkoutSessionView: View {
 
     private var cardioSessionContent:
         some View {
-        VStack {
+        VStack(spacing: 12) {
             header
+            controlButtons
+                .padding(.horizontal, 20)
 
-            Spacer()
+            Spacer(minLength: 0)
 
             VStack(spacing: 16) {
                 WorkoutTrackerView(
                     viewModel:
                         viewModel
                 )
-
-                controlButtons
             }
             .padding(
                 .horizontal,
@@ -218,6 +250,9 @@ struct WorkoutSessionView: View {
         some View {
         VStack(spacing: 0) {
             header
+            controlButtons
+                .padding(.horizontal, 20)
+                .padding(.vertical, 8)
 
             ScrollView {
                 VStack(spacing: 16) {
@@ -288,7 +323,6 @@ struct WorkoutSessionView: View {
                         )
                     }
 
-                    controlButtons
                 }
                 .padding(
                     .horizontal,
@@ -574,13 +608,10 @@ struct WorkoutSessionView: View {
                 )
             } else {
                 Button {
-                    if viewModel.timerState
-                        == .running {
-                        viewModel
-                            .pauseWorkout()
+                    if viewModel.timerState == .running {
+                        pendingWorkoutAction = .pause
                     } else {
-                        viewModel
-                            .resumeWorkout()
+                        viewModel.resumeWorkout()
                     }
                 } label: {
                     Text(
@@ -610,30 +641,7 @@ struct WorkoutSessionView: View {
                 }
 
                 Button {
-                    Task {
-                        let session =
-                            await viewModel
-                                .finishWorkout()
-                        if let onWorkoutUpdate {
-                            onWorkoutUpdate(
-                                WorkoutLiveSnapshot(
-                                    kind: workout.category == .strength ? .strength : .cardio,
-                                    phase: .finished,
-                                    workoutName: workout.name,
-                                    elapsedSeconds: session.timing.activeDuration,
-                                    heartRateBPM: viewModel.heartRate,
-                                    activeCalories: viewModel.activeCalories,
-                                    distanceMeters: viewModel.distanceMeters,
-                                    steps: viewModel.stepCount,
-                                    currentExerciseName: viewModel.activeStrengthExercise?.name,
-                                    completedSets: viewModel.strengthSets.count
-                                )
-                            )
-                        }
-                        onFinished(
-                            session
-                        )
-                    }
+                    pendingWorkoutAction = .finish
                 } label: {
                     Text(
                         "Finish Workout"
@@ -654,6 +662,25 @@ struct WorkoutSessionView: View {
                 }
             }
         }
+    }
+
+    private func finishCurrentWorkout() async {
+        let session = await viewModel.finishWorkout()
+        onWorkoutUpdate?(
+            WorkoutLiveSnapshot(
+                kind: workout.category == .strength ? .strength : .cardio,
+                phase: .finished,
+                workoutName: workout.name,
+                elapsedSeconds: session.timing.activeDuration,
+                heartRateBPM: viewModel.heartRate,
+                activeCalories: viewModel.activeCalories,
+                distanceMeters: viewModel.distanceMeters,
+                steps: viewModel.stepCount,
+                currentExerciseName: viewModel.activeStrengthExercise?.name,
+                completedSets: viewModel.strengthSets.count
+            )
+        )
+        onFinished(session)
     }
 
     // MARK: - Route
