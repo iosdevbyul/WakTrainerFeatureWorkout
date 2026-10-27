@@ -222,7 +222,7 @@ struct WorkoutSessionView: View {
 
     private var cardioSessionContent: some View {
         GeometryReader { geometry in
-            VStack(spacing: 10) {
+            VStack(spacing: 6) {
                 header
                 controlButtons
                     .padding(.horizontal, 20)
@@ -233,7 +233,7 @@ struct WorkoutSessionView: View {
                         paceSegments: currentPaceSegments,
                         followsCurrentPosition: true
                     )
-                    .frame(height: max(120, min(geometry.size.height * 0.35, 250)))
+                    .frame(height: max(90, min(geometry.size.height * 0.22, 160)))
                     .clipShape(RoundedRectangle(cornerRadius: 18))
                     .overlay(alignment: .topTrailing) {
                         Button {
@@ -250,11 +250,9 @@ struct WorkoutSessionView: View {
                     .onTapGesture { isFullScreenMapPresented = true }
                 }
 
-                Spacer(minLength: 0)
-
-                WorkoutTrackerView(viewModel: viewModel)
+                WorkoutTrackerView(viewModel: viewModel, compact: true)
                     .padding(.horizontal, 20)
-                    .padding(.bottom, 12)
+                    .padding(.bottom, 4)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
