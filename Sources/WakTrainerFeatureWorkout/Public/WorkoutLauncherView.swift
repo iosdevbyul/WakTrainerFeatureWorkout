@@ -135,7 +135,7 @@ public struct WorkoutLauncherView: View {
                         guard deleted else { return }
                         onWorkoutUpdate?(
                             WorkoutLiveSnapshot(
-                                kind: stored.session.workout.category == .strength ? .strength : .cardio,
+                                kind: stored.session.workout.category == "strength" ? .strength : .cardio,
                                 phase: .finished,
                                 workoutName: stored.session.workout.name,
                                 elapsedSeconds: stored.session.timing.activeDuration,
