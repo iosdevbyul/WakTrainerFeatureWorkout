@@ -178,7 +178,7 @@ struct WorkoutReportView: View {
                     VStack(alignment: .leading, spacing: 10) {
                         Text("Heart Rate Zones")
                             .font(.headline)
-                        Text("Distribution of recorded heart rate samples")
+                        Text("Estimated time in each zone from recorded heart rate intervals")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         ForEach(
@@ -727,14 +727,25 @@ struct WorkoutReportView: View {
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text(String(format: "%.0f%%", zone.samplePercentage))
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text(zoneDuration(zone.activeDuration))
+                            .font(.subheadline.monospacedDigit().bold())
+                        Text(String(format: "%.0f%% of observed time", zone.activeDurationPercentage))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                         .font(.subheadline.monospacedDigit())
                 }
-                ProgressView(value: zone.samplePercentage, total: 100)
+                ProgressView(value: zone.activeDurationPercentage, total: 100)
                     .tint(heartZoneColor(zone.level.rawValue))
             }
         }
         .accessibilityElement(children: .combine)
+    }
+
+    private func zoneDuration(_ seconds: TimeInterval) -> String {
+        let total = max(0, Int(seconds.rounded()))
+        return String(format: "%d:%02d", total / 60, total % 60)
     }
 
     private func zoneRange(_ zone: WorkoutHeartRateZone) -> String {
