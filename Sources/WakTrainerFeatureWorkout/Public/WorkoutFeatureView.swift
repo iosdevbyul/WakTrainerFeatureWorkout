@@ -100,7 +100,7 @@ public struct WorkoutFeatureView: View {
         self.maximumHeartRate =
             maximumHeartRate
 #if DEBUG
-        print("[WakTrainer][HeartZone][feature-flow-init] maximumHeartRate=\(maximumHeartRate.map(String.init(describing:)) ?? "nil")")
+        print("[WakTrainer][HeartZone][feature-flow-init] maximumHeartRate=\(maximumHeartRate.map { String($0) } ?? "nil")")
 #endif
         self.weightUnit = weightUnit
         self.strengthLocationPolicy = strengthLocationPolicy
