@@ -30,25 +30,27 @@ struct WorkoutTrackerView: View {
                     .foregroundStyle(.secondary)
             }
             LazyVGrid(columns: columns, spacing: compact ? 8 : 12) {
-            VStack(spacing: 4) {
-                MetricCard(
-                    title: "Heart Rate",
-                    value: viewModel.heartRate > 0 ? "\(Int(viewModel.heartRate))" : "—",
-                    unit: "BPM",
-                    iconName: "heart.fill",
-                    iconColor: .red,
-                    compact: compact
-                )
+            MetricCard(
+                title: "Heart Rate",
+                value: viewModel.heartRate > 0 ? "\(Int(viewModel.heartRate))" : "—",
+                unit: "BPM",
+                iconName: "heart.fill",
+                iconColor: .red,
+                compact: compact
+            )
+            .overlay(alignment: .bottomTrailing) {
                 if let heartZone {
                     Text("Zone \(heartZone)")
                         .font(.caption.bold())
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 10)
+                        .foregroundStyle(heartZone == 3 ? .black : .white)
+                        .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(heartZoneColor, in: Capsule())
+                        .padding(8)
                         .accessibilityLabel("Heart rate zone \(heartZone)")
                 }
             }
+
             MetricCard(
                 title: "Calories",
                 value: viewModel.healthSampleEndDates[.activeEnergyBurned] == nil ? "—" : "\(Int(viewModel.activeCalories))",
