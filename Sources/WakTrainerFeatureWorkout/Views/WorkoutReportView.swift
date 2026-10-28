@@ -125,31 +125,15 @@ struct WorkoutReportView: View {
     private var heartSection: some View {
         reportSection(title: "Heart") {
             VStack(alignment: .leading, spacing: 16) {
-                HStack(spacing: 12) {
-                    reportMetric(
-                        title: "Average",
-                        value: formatNumber(
-                            viewModel.report.heart.averageHeartRate,
-                            suffix: " bpm"
-                        )
-                    )
-
-                    reportMetric(
-                        title: "Maximum",
-                        value: formatNumber(
-                            viewModel.report.heart.maximumHeartRate,
-                            suffix: " bpm"
-                        )
-                    )
-
-                    reportMetric(
-                        title: "Minimum",
-                        value: formatNumber(
-                            viewModel.report.heart.minimumHeartRate,
-                            suffix: " bpm"
-                        )
-                    )
+                VStack(alignment: .leading, spacing: 0) {
+                    heartSummaryRow("Maximum", value: viewModel.report.heart.maximumHeartRate)
+                    Divider()
+                    heartSummaryRow("Average", value: viewModel.report.heart.averageHeartRate)
+                    Divider()
+                    heartSummaryRow("Minimum", value: viewModel.report.heart.minimumHeartRate)
                 }
+                .padding(.horizontal, 14)
+                .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
 
                 if !viewModel.heartRateSamples.isEmpty {
                     Chart(viewModel.heartRateSamples) { sample in
@@ -565,6 +549,19 @@ struct WorkoutReportView: View {
                 cornerRadius: 14
             )
         )
+    }
+
+    private func heartSummaryRow(_ title: String, value: Double?) -> some View {
+        HStack {
+            Text(title)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text(formatNumber(value, suffix: " BPM"))
+                .font(.subheadline.monospacedDigit().weight(.semibold))
+        }
+        .padding(.vertical, 12)
+        .accessibilityElement(children: .combine)
     }
 
     private func heartZoneRow(_ zone: WorkoutHeartRateZone) -> some View {
