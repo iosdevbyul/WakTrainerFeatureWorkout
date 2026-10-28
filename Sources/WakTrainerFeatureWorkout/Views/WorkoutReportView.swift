@@ -166,6 +166,10 @@ struct WorkoutReportView: View {
                     }
                     .frame(height: 180)
                     .chartYAxisLabel("bpm")
+
+                    if !viewModel.report.heart.zones.isEmpty {
+                        heartZoneLegend
+                    }
                 }
 
                 if !viewModel.report.heart.zones.isEmpty {
@@ -628,6 +632,58 @@ struct WorkoutReportView: View {
             }
         }
         return result
+    }
+
+    private var heartZoneLegend: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Heart Rate Zone Colors")
+                .font(.subheadline.bold())
+
+            LazyVGrid(
+                columns: [
+                    GridItem(.flexible(), alignment: .leading),
+                    GridItem(.flexible(), alignment: .leading)
+                ],
+                alignment: .leading,
+                spacing: 12
+            ) {
+                ForEach(
+                    viewModel.report.heart.zones,
+                    id: \.level.rawValue
+                ) { zone in
+                    HStack(alignment: .top, spacing: 8) {
+                        Circle()
+                            .fill(heartZoneColor(zone.level.rawValue))
+                            .frame(width: 10, height: 10)
+                            .padding(.top, 4)
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Zone \(zone.level.rawValue) · \(heartZoneDescription(zone.level.rawValue))")
+                                .font(.caption.bold())
+                                .fixedSize(horizontal: false, vertical: true)
+
+                            Text(zoneRange(zone))
+                                .font(.caption2.monospacedDigit())
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(Color.secondary.opacity(0.06), in: RoundedRectangle(cornerRadius: 12))
+    }
+
+    private func heartZoneDescription(_ level: Int) -> String {
+        switch level {
+        case 1: "Recovery"
+        case 2: "Easy"
+        case 3: "Moderate"
+        case 4: "Hard"
+        default: "Maximum"
+        }
     }
 
     private func heartZoneRow(_ zone: WorkoutHeartRateZone) -> some View {
