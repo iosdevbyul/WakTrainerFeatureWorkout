@@ -97,7 +97,7 @@ struct WorkoutTrackerView: View {
 
     private var totalVolume: Double {
         completedSets.filter(\.isCompleted).reduce(0) { result, set in
-            result + (set.weightKilograms ?? 0) * Double(set.repetitions)
+            result + (set.weightKilograms ?? 0) * Double(set.repetitions ?? 0)
         }
     }
 }
