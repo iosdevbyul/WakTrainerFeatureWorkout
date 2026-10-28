@@ -136,17 +136,33 @@ struct WorkoutReportView: View {
                 .background(Color.secondary.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
 
                 if !viewModel.heartRateSamples.isEmpty {
-                    Chart(viewModel.heartRateSamples) { sample in
-                        LineMark(
-                            x: .value(
-                                "Time",
-                                sample.startDate
-                            ),
-                            y: .value(
-                                "Heart Rate",
-                                sample.value
-                            )
-                        )
+                    Chart {
+                        if viewModel.report.heart.zones.isEmpty {
+                            ForEach(viewModel.heartRateSamples) { sample in
+                                LineMark(
+                                    x: .value("Time", sample.startDate),
+                                    y: .value("Heart Rate", sample.value)
+                                )
+                                .foregroundStyle(.green)
+                            }
+                        } else {
+                            ForEach(heartChartSegments) { segment in
+                                LineMark(
+                                    x: .value("Time", segment.start),
+                                    y: .value("Heart Rate", segment.startBPM),
+                                    series: .value("Segment", segment.id)
+                                )
+                                .foregroundStyle(heartZoneColor(segment.zone))
+                                .interpolationMethod(.linear)
+                                LineMark(
+                                    x: .value("Time", segment.end),
+                                    y: .value("Heart Rate", segment.endBPM),
+                                    series: .value("Segment", segment.id)
+                                )
+                                .foregroundStyle(heartZoneColor(segment.zone))
+                                .interpolationMethod(.linear)
+                            }
+                        }
                     }
                     .frame(height: 180)
                     .chartYAxisLabel("bpm")
@@ -562,6 +578,56 @@ struct WorkoutReportView: View {
         }
         .padding(.vertical, 12)
         .accessibilityElement(children: .combine)
+    }
+
+    private struct HeartChartSegment: Identifiable {
+        let id: Int
+        let start: Date
+        let end: Date
+        let startBPM: Double
+        let endBPM: Double
+        let zone: Int
+    }
+
+    private var heartChartSegments: [HeartChartSegment] {
+        let samples = viewModel.heartRateSamples
+            .filter { $0.value.isFinite && $0.value > 0 }
+            .sorted { $0.startDate < $1.startDate }
+        let boundaries = viewModel.report.heart.zones
+            .compactMap(\.upperBoundBPM)
+            .sorted()
+        guard boundaries.count == 4, samples.count >= 2 else { return [] }
+
+        var result: [HeartChartSegment] = []
+        for index in 0..<(samples.count - 1) {
+            let first = samples[index]
+            let second = samples[index + 1]
+            let duration = second.startDate.timeIntervalSince(first.startDate)
+            guard duration > 0 else { continue }
+            var fractions: [Double] = [0, 1]
+            if first.value != second.value {
+                for boundary in boundaries {
+                    let fraction = (boundary - first.value) / (second.value - first.value)
+                    if fraction > 0 && fraction < 1 { fractions.append(fraction) }
+                }
+            }
+            fractions.sort()
+            for part in 0..<(fractions.count - 1) {
+                let low = fractions[part]
+                let high = fractions[part + 1]
+                let midBPM = first.value + (second.value - first.value) * (low + high) / 2
+                let zone = boundaries.filter { midBPM >= $0 }.count + 1
+                result.append(HeartChartSegment(
+                    id: result.count,
+                    start: first.startDate.addingTimeInterval(duration * low),
+                    end: first.startDate.addingTimeInterval(duration * high),
+                    startBPM: first.value + (second.value - first.value) * low,
+                    endBPM: first.value + (second.value - first.value) * high,
+                    zone: zone
+                ))
+            }
+        }
+        return result
     }
 
     private func heartZoneRow(_ zone: WorkoutHeartRateZone) -> some View {
