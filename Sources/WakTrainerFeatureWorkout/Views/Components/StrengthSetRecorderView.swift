@@ -230,12 +230,11 @@ struct StrengthSetRecorderView: View {
                         10
                     )
             }
-            .buttonStyle(
-                .borderedProminent
-            )
-            .disabled(
-                !canCompleteSet
-            )
+            .buttonStyle(.borderedProminent)
+            .tint(.green)
+            .foregroundStyle(.black)
+            .opacity(canCompleteSet ? 1 : 0.55)
+            .disabled(!canCompleteSet)
         }
     }
 
