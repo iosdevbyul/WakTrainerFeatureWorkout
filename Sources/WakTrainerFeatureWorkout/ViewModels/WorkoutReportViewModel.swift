@@ -14,7 +14,7 @@ final class WorkoutReportViewModel: ObservableObject {
         maximumHeartRate: Double? = nil
     ) {
 #if DEBUG
-        print("[WakTrainer][HeartZone][report-builder-init] maximumHeartRate=\(maximumHeartRate.map(String.init(describing:)) ?? "nil") heartRateSamples=\(session.health.samples(for: .heartRate).count)")
+        print("[WakTrainer][HeartZone][report-builder-init] maximumHeartRate=\(maximumHeartRate.map { String($0) } ?? "nil") heartRateSamples=\(session.health.samples(for: .heartRate).count)")
 #endif
         self.session = session
         self.report = WorkoutReportBuilder(
