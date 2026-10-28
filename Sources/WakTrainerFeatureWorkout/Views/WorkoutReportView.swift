@@ -177,10 +177,17 @@ struct WorkoutReportView: View {
                     }
                 }
 
-                if !viewModel.report.heart.zones.isEmpty {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("Heart Rate Zones")
-                            .font(.headline)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Heart Rate Zones")
+                        .font(.headline)
+                    if viewModel.report.heart.zones.isEmpty {
+                        Label(
+                            "Zone analysis unavailable: maximum heart rate is not configured. Check the birth date in your profile.",
+                            systemImage: "exclamationmark.circle"
+                        )
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    } else {
                         Text("Estimated time in each zone from recorded heart rate intervals")
                             .font(.caption)
                             .foregroundStyle(.secondary)
