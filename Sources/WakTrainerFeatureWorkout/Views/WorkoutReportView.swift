@@ -1,4 +1,5 @@
 import Charts
+import MapKit
 import SwiftUI
 import WakTrainerCoreModels
 import WakTrainerDomainWorkout
@@ -40,6 +41,7 @@ struct WorkoutReportView: View {
 
                 if let strength = viewModel.report.strength {
                     strengthSection(strength)
+                    strengthLocationSection
                     strengthInsightsSection
                 }
 
@@ -167,6 +169,31 @@ struct WorkoutReportView: View {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    private var strengthLocationSection: some View {
+        reportSection(title: "Workout Location") {
+            if let point = viewModel.session.route.first {
+                Map(initialPosition: .region(
+                    MKCoordinateRegion(
+                        center: point.coordinate,
+                        latitudinalMeters: 350,
+                        longitudinalMeters: 350
+                    )
+                )) {
+                    Marker("Workout Location", coordinate: point.coordinate)
+                }
+                .frame(height: 220)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+            } else {
+                Label(
+                    "Location unavailable for this workout.",
+                    systemImage: "location.slash"
+                )
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
             }
         }
     }

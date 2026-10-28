@@ -60,6 +60,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     private let locationManager: (any WorkoutLocationManaging)?
     private let strengthLocationPolicy: StrengthWorkoutLocationPolicy
     private var didCaptureStrengthLocation = false
+    private var capturedStrengthLocation: WorkoutRoutePoint?
     private var snapshotTimeoutTask: Task<Void, Never>?
     private var locationSubscriptions = Set<AnyCancellable>()
     private let sessionRepository: (any WorkoutSessionRepository)?
@@ -207,6 +208,13 @@ final class WorkoutSessionViewModel: ObservableObject {
                           !self.didCaptureStrengthLocation,
                           let location, location.horizontalAccuracy >= 0 else { return }
                     self.didCaptureStrengthLocation = true
+                    self.capturedStrengthLocation = WorkoutRoutePoint(
+                        timestamp: location.timestamp,
+                        latitude: location.coordinate.latitude,
+                        longitude: location.coordinate.longitude,
+                        altitude: location.altitude,
+                        horizontalAccuracy: location.horizontalAccuracy
+                    )
                     self.snapshotTimeoutTask?.cancel()
                     self.locationManager?.stopTracking()
                 }
@@ -385,7 +393,10 @@ final class WorkoutSessionViewModel: ObservableObject {
             sessionStartDate ?? endDate
         let activeDuration = elapsedTime
         let finalSessionID = sessionID
-        let finalRoutePoints = routePoints
+        let finalRoutePoints: [WorkoutRoutePoint] =
+            workout.category == .strength && strengthLocationPolicy == .singleLocation
+                ? (capturedStrengthLocation.map { [$0] } ?? routePoints)
+                : routePoints
 
         let finalStrengthExerciseRecords =
             strengthExerciseRecordsSnapshot(
