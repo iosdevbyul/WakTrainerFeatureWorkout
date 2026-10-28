@@ -169,7 +169,12 @@ struct WorkoutReportView: View {
                 }
 
                 if !viewModel.report.heart.zones.isEmpty {
-                    VStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Heart Rate Zones")
+                            .font(.headline)
+                        Text("Distribution of recorded heart rate samples")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                         ForEach(
                             viewModel.report.heart.zones,
                             id: \.level.rawValue
@@ -562,30 +567,45 @@ struct WorkoutReportView: View {
         )
     }
 
-    private func heartZoneRow(
-        _ zone: WorkoutHeartRateZone
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("Zone \(zone.level.rawValue)")
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+    private func heartZoneRow(_ zone: WorkoutHeartRateZone) -> some View {
+        HStack(spacing: 10) {
+            RoundedRectangle(cornerRadius: 3)
+                .fill(heartZoneColor(zone.level.rawValue))
+                .frame(width: 5, height: 38)
 
-                Spacer()
-
-                Text(
-                    String(
-                        format: "%.0f%%",
-                        zone.samplePercentage
-                    )
-                )
-                .font(.subheadline.monospacedDigit())
+            VStack(alignment: .leading, spacing: 4) {
+                HStack {
+                    Text("Zone \(zone.level.rawValue)")
+                        .font(.subheadline.bold())
+                    Text(zoneRange(zone))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(String(format: "%.0f%%", zone.samplePercentage))
+                        .font(.subheadline.monospacedDigit())
+                }
+                ProgressView(value: zone.samplePercentage, total: 100)
+                    .tint(heartZoneColor(zone.level.rawValue))
             }
+        }
+        .accessibilityElement(children: .combine)
+    }
 
-            ProgressView(
-                value: zone.samplePercentage,
-                total: 100
-            )
+    private func zoneRange(_ zone: WorkoutHeartRateZone) -> String {
+        let low = Int(zone.lowerBoundBPM.rounded(.up))
+        if let high = zone.upperBoundBPM {
+            return "\(low)–\(Int(high.rounded(.up)) - 1) bpm"
+        }
+        return "\(low)+ bpm"
+    }
+
+    private func heartZoneColor(_ level: Int) -> Color {
+        switch level {
+        case 1: .blue
+        case 2: .green
+        case 3: .yellow
+        case 4: .orange
+        default: .red
         }
     }
 
