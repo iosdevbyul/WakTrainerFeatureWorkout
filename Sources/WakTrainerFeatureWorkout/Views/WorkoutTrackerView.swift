@@ -46,6 +46,24 @@ struct WorkoutTrackerView: View {
                 compact: compact
             )
 
+            if viewModel.workout.category == .strength {
+                MetricCard(
+                    title: "Completed Sets",
+                    value: "\(completedSetCount)",
+                    unit: "sets",
+                    iconName: "checkmark.circle.fill",
+                    iconColor: .green,
+                    compact: compact
+                )
+                MetricCard(
+                    title: "Total Volume",
+                    value: totalVolume.formatted(.number.precision(.fractionLength(0...1))),
+                    unit: "kg",
+                    iconName: "dumbbell.fill",
+                    iconColor: .green,
+                    compact: compact
+                )
+            } else {
             MetricCard(
                 title: "Steps",
                 value: viewModel.healthSampleEndDates[.stepCount] == nil ? "—" : "\(Int(viewModel.stepCount))",
@@ -64,6 +82,22 @@ struct WorkoutTrackerView: View {
                 compact: compact
             )
             }
+            }
+        }
+    }
+
+    private var completedSets: [StrengthSetRecord] {
+        viewModel.completedStrengthExerciseRecords.flatMap(\.strengthSets)
+            + viewModel.strengthSets
+    }
+
+    private var completedSetCount: Int {
+        completedSets.filter(\.isCompleted).count
+    }
+
+    private var totalVolume: Double {
+        completedSets.filter(\.isCompleted).reduce(0) { result, set in
+            result + (set.weightKilograms ?? 0) * Double(set.repetitions)
         }
     }
 }
