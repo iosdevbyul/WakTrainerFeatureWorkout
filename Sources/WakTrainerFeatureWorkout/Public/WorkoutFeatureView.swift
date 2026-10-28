@@ -157,6 +157,7 @@ public struct WorkoutFeatureView: View {
                 sessionRepository:
                     sessionRepository,
                 weightUnit: weightUnit,
+                maximumHeartRate: maximumHeartRate,
                 strengthLocationPolicy: strengthLocationPolicy,
                 onCancel: {
                     if startsFromDirectWorkout {
