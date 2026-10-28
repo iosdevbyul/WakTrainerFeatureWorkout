@@ -27,6 +27,7 @@ struct WorkoutSessionView: View {
     }
 
     private let strengthLocationPolicy: StrengthWorkoutLocationPolicy
+    private let maximumHeartRate: Double?
     private let weightUnit: WorkoutWeightUnit
     private let workout:
         WorkoutDefinition
@@ -44,6 +45,7 @@ struct WorkoutSessionView: View {
         sessionRepository:
             (any WorkoutSessionRepository)? = nil,
         weightUnit: WorkoutWeightUnit = .kg,
+        maximumHeartRate: Double? = nil,
         strengthLocationPolicy: StrengthWorkoutLocationPolicy = .singleLocation,
         onCancel:
             @escaping () -> Void,
@@ -53,6 +55,7 @@ struct WorkoutSessionView: View {
     ) {
         self.workout = workout
         self.weightUnit = weightUnit
+        self.maximumHeartRate = maximumHeartRate
         self.strengthLocationPolicy = strengthLocationPolicy
         self.onCancel = onCancel
         self.onFinished = onFinished
@@ -253,7 +256,7 @@ struct WorkoutSessionView: View {
                     .onTapGesture { isFullScreenMapPresented = true }
                 }
 
-                WorkoutTrackerView(viewModel: viewModel, compact: true)
+                WorkoutTrackerView(viewModel: viewModel, compact: true, maximumHeartRate: maximumHeartRate)
                     .padding(.horizontal, 20)
                     .padding(.bottom, 4)
             }
@@ -409,8 +412,8 @@ struct WorkoutSessionView: View {
                     }
 
                     WorkoutTrackerView(
-                        viewModel:
-                            viewModel
+                        viewModel: viewModel,
+                        maximumHeartRate: maximumHeartRate
                     )
 
                     if viewModel.timerState
