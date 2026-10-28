@@ -5,15 +5,17 @@ struct WorkoutTrackerView: View {
     @ObservedObject private var viewModel: WorkoutSessionViewModel
 
     var compact: Bool = false
+    let maximumHeartRate: Double?
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
         GridItem(.flexible(), spacing: 12)
     ]
 
-    init(viewModel: WorkoutSessionViewModel, compact: Bool = false) {
+    init(viewModel: WorkoutSessionViewModel, compact: Bool = false, maximumHeartRate: Double? = nil) {
         self.viewModel = viewModel
         self.compact = compact
+        self.maximumHeartRate = maximumHeartRate
     }
 
     var body: some View {
@@ -28,15 +30,25 @@ struct WorkoutTrackerView: View {
                     .foregroundStyle(.secondary)
             }
             LazyVGrid(columns: columns, spacing: compact ? 8 : 12) {
-            MetricCard(
-                title: "Heart Rate",
-                value: viewModel.healthSampleEndDates[.heartRate] == nil ? "—" : "\(Int(viewModel.heartRate))",
-                unit: "BPM",
-                iconName: "heart.fill",
-                iconColor: .red,
-                compact: compact
-            )
-
+            VStack(spacing: 4) {
+                MetricCard(
+                    title: "Heart Rate",
+                    value: viewModel.heartRate > 0 ? "\(Int(viewModel.heartRate))" : "—",
+                    unit: "BPM",
+                    iconName: "heart.fill",
+                    iconColor: .red,
+                    compact: compact
+                )
+                if let heartZone {
+                    Text("Zone \(heartZone)")
+                        .font(.caption.bold())
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(heartZoneColor, in: Capsule())
+                        .accessibilityLabel("Heart rate zone \(heartZone)")
+                }
+            }
             MetricCard(
                 title: "Calories",
                 value: viewModel.healthSampleEndDates[.activeEnergyBurned] == nil ? "—" : "\(Int(viewModel.activeCalories))",
@@ -83,6 +95,29 @@ struct WorkoutTrackerView: View {
             )
             }
             }
+        }
+    }
+
+    private var heartZone: Int? {
+        guard let maximumHeartRate, maximumHeartRate > 0,
+              viewModel.heartRate > 0 else { return nil }
+        let percentage = viewModel.heartRate / maximumHeartRate
+        switch percentage {
+        case ..<0.6: return 1
+        case ..<0.7: return 2
+        case ..<0.8: return 3
+        case ..<0.9: return 4
+        default: return 5
+        }
+    }
+
+    private var heartZoneColor: Color {
+        switch heartZone {
+        case 1: return .blue
+        case 2: return .green
+        case 3: return .yellow
+        case 4: return .orange
+        default: return .red
         }
     }
 
