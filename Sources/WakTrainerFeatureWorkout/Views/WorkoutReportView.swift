@@ -106,12 +106,15 @@ struct WorkoutReportView: View {
                     )
                 )
 
+                if viewModel.report.cardio != nil {
                 reportMetric(
                     title: "Distance",
                     value: formatDistance(
                         viewModel.report.summary.distanceMeters
                     )
                 )
+
+                }
 
                 reportMetric(
                     title: "Average Heart Rate",
@@ -527,12 +530,15 @@ struct WorkoutReportView: View {
                     )
                 )
 
+                if viewModel.report.cardio != nil {
                 detailRow(
                     title: "Steps",
                     value: formatNumber(
                         viewModel.report.summary.stepCount
                     )
                 )
+
+                }
 
                 detailRow(
                     title: "Heart Rate Samples",
