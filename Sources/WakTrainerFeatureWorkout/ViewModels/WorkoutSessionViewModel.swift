@@ -1,7 +1,7 @@
 import Foundation
 import Combine
 import CoreLocation
-import CoreMotion
+import TrisMotionKit
 import WakTrainerCoreModels
 import WakTrainerDomainWorkout
 import WakTrainerServiceLocation
@@ -133,7 +133,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     private var externalHeartRateTask: Task<Void, Never>?
     private var externalHeartRateSession: AnyObject?
     private var externalHeartRateLatest: Double?
-    private let pedometer = CMPedometer()
+    private let pedometer: any PedometerServing = PedometerService()
     private var externalHeartRateSamples: [WorkoutHealthMetricSample] = []
     private var simulationTask: Task<Void, Never>?
     private var simulator = DebugWorkoutSimulator()
@@ -1265,31 +1265,25 @@ final class WorkoutSessionViewModel: ObservableObject {
         return merged
     }
 
-    // Independent sensor-source measurement. Do not add this value to
-    // HealthKit's cumulative step count or overwrite workout summary values.
+    // Preserve Core Motion measurements separately from HealthKit samples.
     private func queryCoreMotionStepCount(
         from startDate: Date, to endDate: Date
     ) async -> WorkoutHealthMetricSample? {
-        guard endDate > startDate,
-              CMPedometer.isStepCountingAvailable() else { return nil }
-
-        return await withCheckedContinuation { continuation in
-            pedometer.queryPedometerData(from: startDate, to: endDate) {
-                data, error in
-                guard error == nil, let data else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-                continuation.resume(returning: WorkoutHealthMetricSample(
-                    metric: .stepCount,
-                    startDate: data.startDate,
-                    endDate: data.endDate,
-                    value: data.numberOfSteps.doubleValue,
-                    unit: "count",
-                    sourceName: "Core Motion",
-                    sourceBundleIdentifier: Bundle.main.bundleIdentifier
-                ))
-            }
+        do {
+            guard let data = try await pedometer.steps(
+                from: startDate, to: endDate
+            ) else { return nil }
+            return WorkoutHealthMetricSample(
+                metric: .stepCount,
+                startDate: data.startDate,
+                endDate: data.endDate,
+                value: Double(data.steps),
+                unit: "count",
+                sourceName: "Core Motion",
+                sourceBundleIdentifier: Bundle.main.bundleIdentifier
+            )
+        } catch {
+            return nil
         }
     }
 
