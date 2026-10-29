@@ -449,6 +449,12 @@ final class WorkoutSessionViewModel: ObservableObject {
             completeHealthData.samples = mergeHealthSamples(
                 completeHealthData.samples, [motionSample]
             )
+            // Summary is what WorkoutReportBuilder renders. Store both
+            // sources in samples, but use the complete Core Motion interval
+            // as the representative count when available.
+            if motionSample.value > 0 {
+                completeHealthData.summary.stepCount = motionSample.value
+            }
         }
 
         let session = makeSession(
@@ -896,6 +902,9 @@ final class WorkoutSessionViewModel: ObservableObject {
                 checkpointHealth.samples = mergeHealthSamples(
                     checkpointHealth.samples, [motionSample]
                 )
+                if motionSample.value > 0 {
+                    checkpointHealth.summary.stepCount = motionSample.value
+                }
             }
             liveHealthData = checkpointHealth
         }
