@@ -114,6 +114,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     private var completedPauseIntervals: [WorkoutPauseInterval] = []
     private var openPauseStartDate: Date?
     private var recoveredHealthData: WorkoutHealthData?
+    private var lastPersistedHealthQueryEnd: Date?
     private var recoveredActiveCaloriesBase: Double = 0
     private var recoveredStepCountBase: Double = 0
     private var recoveredDistanceBase: Double = 0
@@ -832,10 +833,18 @@ final class WorkoutSessionViewModel: ObservableObject {
         // Persist timestamped HealthKit samples as well as live summary values.
         // A summary-only checkpoint cannot reconstruct the pre-relaunch HR chart.
         let liveHealthData: WorkoutHealthData
+        let checkpointQueryEnd = Date()
         if useSimulation {
             liveHealthData = simulator.health
         } else {
-            let measured = await collectFinalHealthData(from: startDate, to: Date())
+            let queryEnd = checkpointQueryEnd
+            // Keep a short overlap for slightly delayed HealthKit samples.
+            // Only advance the cursor after the checkpoint has been saved.
+            let queryStart = max(
+                startDate,
+                (lastPersistedHealthQueryEnd ?? startDate).addingTimeInterval(-60)
+            )
+            let measured = await collectFinalHealthData(from: queryStart, to: queryEnd)
             var checkpointHealth = measured
             checkpointHealth.summary.activeCalories = nonZero(activeCalories)
             checkpointHealth.summary.stepCount = nonZero(stepCount)
@@ -879,6 +888,9 @@ final class WorkoutSessionViewModel: ObservableObject {
             // Carry forward successfully persisted samples across subsequent
             // checkpoints, including additional app relaunches.
             recoveredHealthData = liveHealthData
+            if !useSimulation {
+                lastPersistedHealthQueryEnd = checkpointQueryEnd
+            }
             storageError = nil
         } catch {
             storageError =
@@ -904,6 +916,11 @@ final class WorkoutSessionViewModel: ObservableObject {
         openPauseStartDate = nil
         recoveredHealthData =
             session.health
+        // Re-query the final minute of the restored session; retain all
+        // previously checkpointed samples even if HealthKit returns a subset.
+        lastPersistedHealthQueryEnd = session.health.samples
+            .map(\.endDate)
+            .max()
 
         recoveredActiveCaloriesBase =
             healthSummary.activeCalories
