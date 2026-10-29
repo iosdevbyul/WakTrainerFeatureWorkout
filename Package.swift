@@ -37,7 +37,7 @@ let package = Package(
         ),
         .package(
             url: "https://github.com/iosdevbyul/TrisMotionKit",
-            revision: "b35e0addde12d02670fd7e33687d411a8858c112"
+            revision: "5b1b18e7a2da3b827a1991f59a40c861c2debc5c"
         )
     ],
     targets: [
