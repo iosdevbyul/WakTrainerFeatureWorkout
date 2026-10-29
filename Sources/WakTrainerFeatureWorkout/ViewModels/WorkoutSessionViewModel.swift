@@ -1161,60 +1161,48 @@ final class WorkoutSessionViewModel: ObservableObject {
     }
 
     private func mergeRecoveredHealthData(
-        _ recovered:
-            WorkoutHealthData,
-        with resumed:
-            WorkoutHealthData
+        _ recovered: WorkoutHealthData,
+        with complete: WorkoutHealthData
     ) -> WorkoutHealthData {
-        var merged = resumed
-        let previous =
-            recovered.summary
-
-        merged.summary.activeCalories = sumOptional(
-            previous.activeCalories,
-            resumed.summary.activeCalories
-        )
-
-        merged.summary.stepCount = sumOptional(
-            previous.stepCount,
-            resumed.summary.stepCount
-        )
-
-        merged.summary.distanceMeters = sumOptional(
-            previous.distanceMeters,
-            resumed.summary.distanceMeters
-        )
-
-        if merged.summary
-            .averageHeartRate == nil {
-            merged.summary
-                .averageHeartRate =
-                previous
-                    .averageHeartRate
+        // The new fetch spans the entire workout, so its totals must NOT be
+        // added to checkpoint totals. Retain old values only when unavailable.
+        var merged = complete
+        if merged.summary.averageHeartRate == nil {
+            merged.summary.averageHeartRate = recovered.summary.averageHeartRate
         }
+        if merged.summary.activeCalories == nil {
+            merged.summary.activeCalories = recovered.summary.activeCalories
+        }
+        if merged.summary.stepCount == nil {
+            merged.summary.stepCount = recovered.summary.stepCount
+        }
+        if merged.summary.distanceMeters == nil {
+            merged.summary.distanceMeters = recovered.summary.distanceMeters
+        }
+        merged.summary.minimumHeartRate = minimumOptional(
+            recovered.summary.minimumHeartRate, complete.summary.minimumHeartRate
+        )
+        merged.summary.maximumHeartRate = maximumOptional(
+            recovered.summary.maximumHeartRate, complete.summary.maximumHeartRate
+        )
 
-        merged.summary
-            .minimumHeartRate =
-            minimumOptional(
-                previous
-                    .minimumHeartRate,
-                resumed.summary
-                    .minimumHeartRate
-            )
-
-        merged.summary
-            .maximumHeartRate =
-            maximumOptional(
-                previous
-                    .maximumHeartRate,
-                resumed.summary
-                    .maximumHeartRate
-            )
-
-        merged.samples =
-            recovered.samples
-            + resumed.samples
-
+        // Fetches may return different sample IDs for the same observation.
+        // Deduplicate using the measured content rather than the generated ID.
+        var seen = Set<String>()
+        merged.samples = (recovered.samples + complete.samples)
+            .filter { sample in
+                let key = [
+                    sample.metric.rawValue,
+                    String(sample.startDate.timeIntervalSince1970),
+                    String(sample.endDate.timeIntervalSince1970),
+                    String(sample.value),
+                    sample.unit,
+                    sample.sourceBundleIdentifier ?? "",
+                    sample.sourceName ?? ""
+                ].joined(separator: "|")
+                return seen.insert(key).inserted
+            }
+            .sorted { $0.startDate < $1.startDate }
         return merged
     }
 
