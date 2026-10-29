@@ -47,9 +47,6 @@ public struct WorkoutLauncherView: View {
         self.resumeRequestID = resumeRequestID
         self.maximumHeartRate =
             maximumHeartRate
-#if DEBUG
-        print("[WakTrainer][HeartZone][feature-launcher-init] maximumHeartRate=\(maximumHeartRate.map { String($0) } ?? "nil")")
-#endif
         self.weightUnit = weightUnit
         self.strengthLocationPolicy = strengthLocationPolicy
         self.sessionRepository =
