@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import CoreLocation
+import CoreMotion
 import WakTrainerCoreModels
 import WakTrainerDomainWorkout
 import WakTrainerServiceLocation
@@ -132,6 +133,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     private var externalHeartRateTask: Task<Void, Never>?
     private var externalHeartRateSession: AnyObject?
     private var externalHeartRateLatest: Double?
+    private let pedometer = CMPedometer()
     private var externalHeartRateSamples: [WorkoutHealthMetricSample] = []
     private var simulationTask: Task<Void, Never>?
     private var simulator = DebugWorkoutSimulator()
@@ -441,6 +443,13 @@ final class WorkoutSessionViewModel: ObservableObject {
         completeHealthData.samples = mergeHealthSamples(
             completeHealthData.samples, externalHeartRateSamples
         )
+        if !useSimulation, let motionSample = await queryCoreMotionStepCount(
+            from: startDate, to: endDate
+        ) {
+            completeHealthData.samples = mergeHealthSamples(
+                completeHealthData.samples, [motionSample]
+            )
+        }
 
         let session = makeSession(
             id: finalSessionID,
@@ -881,6 +890,13 @@ final class WorkoutSessionViewModel: ObservableObject {
             checkpointHealth.samples = mergeHealthSamples(
                 checkpointHealth.samples, externalHeartRateSamples
             )
+            if let motionSample = await queryCoreMotionStepCount(
+                from: startDate, to: checkpointQueryEnd
+            ) {
+                checkpointHealth.samples = mergeHealthSamples(
+                    checkpointHealth.samples, [motionSample]
+                )
+            }
             liveHealthData = checkpointHealth
         }
 
@@ -1247,6 +1263,34 @@ final class WorkoutSessionViewModel: ObservableObject {
 
         merged.samples = mergeHealthSamples(recovered.samples, complete.samples)
         return merged
+    }
+
+    // Independent sensor-source measurement. Do not add this value to
+    // HealthKit's cumulative step count or overwrite workout summary values.
+    private func queryCoreMotionStepCount(
+        from startDate: Date, to endDate: Date
+    ) async -> WorkoutHealthMetricSample? {
+        guard endDate > startDate,
+              CMPedometer.isStepCountingAvailable() else { return nil }
+
+        return await withCheckedContinuation { continuation in
+            pedometer.queryPedometerData(from: startDate, to: endDate) {
+                data, error in
+                guard error == nil, let data else {
+                    continuation.resume(returning: nil)
+                    return
+                }
+                continuation.resume(returning: WorkoutHealthMetricSample(
+                    metric: .stepCount,
+                    startDate: data.startDate,
+                    endDate: data.endDate,
+                    value: data.numberOfSteps.doubleValue,
+                    unit: "count",
+                    sourceName: "Core Motion",
+                    sourceBundleIdentifier: Bundle.main.bundleIdentifier
+                ))
+            }
+        }
     }
 
     private func mergeHealthSamples(
