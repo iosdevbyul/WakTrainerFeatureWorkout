@@ -1,5 +1,4 @@
 import SwiftUI
-import TrisMotionKit
 import WakTrainerCoreModels
 import WakTrainerDomainWorkout
 import WakTrainerServiceWorkoutStorage
@@ -10,7 +9,6 @@ public struct WorkoutLauncherView: View {
     @StateObject private var viewModel:
         WorkoutLauncherViewModel
 
-    @State private var hasPreparedMotionPermission = false
 
     private let strengthLocationPolicy: StrengthWorkoutLocationPolicy
     private let weightUnit: WorkoutWeightUnit
@@ -382,16 +380,7 @@ private extension WorkoutLauncherView {
 
     var orbButton: some View {
         Button {
-            let isOpening = !viewModel.isExpanded
             viewModel.toggleLauncher()
-            if isOpening && !hasPreparedMotionPermission {
-                hasPreparedMotionPermission = true
-                Task {
-                    // Request once, before choosing or starting a workout.
-                    // A denied or unavailable sensor must never block exercise.
-                    try? await PedometerService().prepareAuthorization()
-                }
-            }
         } label: {
             ZStack {
                 Circle()
