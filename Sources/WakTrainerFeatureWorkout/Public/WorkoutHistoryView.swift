@@ -181,6 +181,9 @@ private extension WorkoutHistoryView {
                         alignment: .leading
                     )
                     .padding(.vertical, 12)
+                    // Make the entire visible row, including its empty space,
+                    // participate in the NavigationLink hit-testing region.
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
 
