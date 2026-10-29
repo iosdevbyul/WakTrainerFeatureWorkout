@@ -409,30 +409,19 @@ final class WorkoutSessionViewModel: ObservableObject {
 
         if useSimulation {
             healthData = simulator.health
-        } else if let recoveredHealthData {
-            if let recoveryResumeDate {
-                let resumedHealthData =
-                    await collectFinalHealthData(
-                        from: recoveryResumeDate,
-                        to: endDate
-                    )
-
-                healthData =
-                    mergeRecoveredHealthData(
-                        recoveredHealthData,
-                        with:
-                            resumedHealthData
-                    )
-            } else {
-                healthData =
-                    recoveredHealthData
-            }
         } else {
-            healthData =
-                await collectFinalHealthData(
-                    from: startDate,
-                    to: endDate
+            // Query the complete workout span, not only the resumed portion.
+            // HealthKit can retain samples from before the app was terminated.
+            let complete = await collectFinalHealthData(
+                from: startDate, to: endDate
+            )
+            if let recoveredHealthData {
+                healthData = mergeRecoveredHealthData(
+                    recoveredHealthData, with: complete
                 )
+            } else {
+                healthData = complete
+            }
         }
 
         let session = makeSession(
@@ -840,27 +829,27 @@ final class WorkoutSessionViewModel: ObservableObject {
             return
         }
 
-        let liveHealthData = useSimulation ? simulator.health : WorkoutHealthData(
-                summary:
-                    WorkoutHealthSummary(
-                        averageHeartRate:
-                            nonZero(
-                                heartRate
-                            ),
-                        activeCalories:
-                            nonZero(
-                                activeCalories
-                            ),
-                        stepCount:
-                            nonZero(
-                                stepCount
-                            ),
-                        distanceMeters:
-                            nonZero(
-                                distanceMeters
-                            )
-                    )
-            )
+        // Persist timestamped HealthKit samples as well as live summary values.
+        // A summary-only checkpoint cannot reconstruct the pre-relaunch HR chart.
+        let liveHealthData: WorkoutHealthData
+        if useSimulation {
+            liveHealthData = simulator.health
+        } else {
+            let measured = await collectFinalHealthData(from: startDate, to: Date())
+            var checkpointHealth = measured
+            checkpointHealth.summary.activeCalories = nonZero(activeCalories)
+            checkpointHealth.summary.stepCount = nonZero(stepCount)
+            checkpointHealth.summary.distanceMeters = nonZero(distanceMeters)
+            if checkpointHealth.summary.averageHeartRate == nil {
+                checkpointHealth.summary.averageHeartRate = nonZero(heartRate)
+            }
+            // A transient HealthKit query failure must not discard samples
+            // recovered from an earlier saved checkpoint.
+            if let recoveredHealthData, checkpointHealth.samples.isEmpty {
+                checkpointHealth.samples = recoveredHealthData.samples
+            }
+            liveHealthData = checkpointHealth
+        }
 
         let checkpoint = makeSession(
             id: sessionID,
@@ -1172,60 +1161,48 @@ final class WorkoutSessionViewModel: ObservableObject {
     }
 
     private func mergeRecoveredHealthData(
-        _ recovered:
-            WorkoutHealthData,
-        with resumed:
-            WorkoutHealthData
+        _ recovered: WorkoutHealthData,
+        with complete: WorkoutHealthData
     ) -> WorkoutHealthData {
-        var merged = resumed
-        let previous =
-            recovered.summary
-
-        merged.summary.activeCalories = sumOptional(
-            previous.activeCalories,
-            resumed.summary.activeCalories
-        )
-
-        merged.summary.stepCount = sumOptional(
-            previous.stepCount,
-            resumed.summary.stepCount
-        )
-
-        merged.summary.distanceMeters = sumOptional(
-            previous.distanceMeters,
-            resumed.summary.distanceMeters
-        )
-
-        if merged.summary
-            .averageHeartRate == nil {
-            merged.summary
-                .averageHeartRate =
-                previous
-                    .averageHeartRate
+        // The new fetch spans the entire workout, so its totals must NOT be
+        // added to checkpoint totals. Retain old values only when unavailable.
+        var merged = complete
+        if merged.summary.averageHeartRate == nil {
+            merged.summary.averageHeartRate = recovered.summary.averageHeartRate
         }
+        if merged.summary.activeCalories == nil {
+            merged.summary.activeCalories = recovered.summary.activeCalories
+        }
+        if merged.summary.stepCount == nil {
+            merged.summary.stepCount = recovered.summary.stepCount
+        }
+        if merged.summary.distanceMeters == nil {
+            merged.summary.distanceMeters = recovered.summary.distanceMeters
+        }
+        merged.summary.minimumHeartRate = minimumOptional(
+            recovered.summary.minimumHeartRate, complete.summary.minimumHeartRate
+        )
+        merged.summary.maximumHeartRate = maximumOptional(
+            recovered.summary.maximumHeartRate, complete.summary.maximumHeartRate
+        )
 
-        merged.summary
-            .minimumHeartRate =
-            minimumOptional(
-                previous
-                    .minimumHeartRate,
-                resumed.summary
-                    .minimumHeartRate
-            )
-
-        merged.summary
-            .maximumHeartRate =
-            maximumOptional(
-                previous
-                    .maximumHeartRate,
-                resumed.summary
-                    .maximumHeartRate
-            )
-
-        merged.samples =
-            recovered.samples
-            + resumed.samples
-
+        // Fetches may return different sample IDs for the same observation.
+        // Deduplicate using the measured content rather than the generated ID.
+        var seen = Set<String>()
+        merged.samples = (recovered.samples + complete.samples)
+            .filter { sample in
+                let key = [
+                    sample.metric.rawValue,
+                    String(sample.startDate.timeIntervalSince1970),
+                    String(sample.endDate.timeIntervalSince1970),
+                    String(sample.value),
+                    sample.unit,
+                    sample.sourceBundleIdentifier ?? "",
+                    sample.sourceName ?? ""
+                ].joined(separator: "|")
+                return seen.insert(key).inserted
+            }
+            .sorted { $0.startDate < $1.startDate }
         return merged
     }
 
