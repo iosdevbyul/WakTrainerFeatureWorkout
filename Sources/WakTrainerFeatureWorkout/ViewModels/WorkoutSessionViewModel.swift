@@ -449,12 +449,17 @@ final class WorkoutSessionViewModel: ObservableObject {
             completeHealthData.samples = mergeHealthSamples(
                 completeHealthData.samples, [motionSample]
             )
-            // Summary is what WorkoutReportBuilder renders. Store both
-            // sources in samples, but use the complete Core Motion interval
-            // as the representative count when available.
-            if motionSample.value > 0 {
-                completeHealthData.summary.stepCount = motionSample.value
-            }
+        }
+        // The report reads summary.stepCount rather than the raw samples.
+        // Also recover the last saved Core Motion count if the final sensor
+        // query fails (e.g. app restarts or permission temporarily changes).
+        // Checkpoint intervals are cumulative, so NEVER sum their values.
+        if let motionCount = completeHealthData.samples
+            .filter({ $0.metric == .stepCount && $0.sourceName == "Core Motion" })
+            .map(\.value)
+            .filter({ $0 > 0 })
+            .max() {
+            completeHealthData.summary.stepCount = motionCount
         }
 
         let session = makeSession(
