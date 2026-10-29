@@ -409,30 +409,19 @@ final class WorkoutSessionViewModel: ObservableObject {
 
         if useSimulation {
             healthData = simulator.health
-        } else if let recoveredHealthData {
-            if let recoveryResumeDate {
-                let resumedHealthData =
-                    await collectFinalHealthData(
-                        from: recoveryResumeDate,
-                        to: endDate
-                    )
-
-                healthData =
-                    mergeRecoveredHealthData(
-                        recoveredHealthData,
-                        with:
-                            resumedHealthData
-                    )
-            } else {
-                healthData =
-                    recoveredHealthData
-            }
         } else {
-            healthData =
-                await collectFinalHealthData(
-                    from: startDate,
-                    to: endDate
+            // Query the complete workout span, not only the resumed portion.
+            // HealthKit can retain samples from before the app was terminated.
+            let complete = await collectFinalHealthData(
+                from: startDate, to: endDate
+            )
+            if let recoveredHealthData {
+                healthData = mergeRecoveredHealthData(
+                    recoveredHealthData, with: complete
                 )
+            } else {
+                healthData = complete
+            }
         }
 
         let session = makeSession(
@@ -840,27 +829,27 @@ final class WorkoutSessionViewModel: ObservableObject {
             return
         }
 
-        let liveHealthData = useSimulation ? simulator.health : WorkoutHealthData(
-                summary:
-                    WorkoutHealthSummary(
-                        averageHeartRate:
-                            nonZero(
-                                heartRate
-                            ),
-                        activeCalories:
-                            nonZero(
-                                activeCalories
-                            ),
-                        stepCount:
-                            nonZero(
-                                stepCount
-                            ),
-                        distanceMeters:
-                            nonZero(
-                                distanceMeters
-                            )
-                    )
-            )
+        // Persist timestamped HealthKit samples as well as live summary values.
+        // A summary-only checkpoint cannot reconstruct the pre-relaunch HR chart.
+        let liveHealthData: WorkoutHealthData
+        if useSimulation {
+            liveHealthData = simulator.health
+        } else {
+            let measured = await collectFinalHealthData(from: startDate, to: Date())
+            var checkpointHealth = measured
+            checkpointHealth.summary.activeCalories = nonZero(activeCalories)
+            checkpointHealth.summary.stepCount = nonZero(stepCount)
+            checkpointHealth.summary.distanceMeters = nonZero(distanceMeters)
+            if checkpointHealth.summary.averageHeartRate == nil {
+                checkpointHealth.summary.averageHeartRate = nonZero(heartRate)
+            }
+            // A transient HealthKit query failure must not discard samples
+            // recovered from an earlier saved checkpoint.
+            if let recoveredHealthData, checkpointHealth.samples.isEmpty {
+                checkpointHealth.samples = recoveredHealthData.samples
+            }
+            liveHealthData = checkpointHealth
+        }
 
         let checkpoint = makeSession(
             id: sessionID,
