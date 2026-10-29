@@ -132,6 +132,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     private var externalHeartRateTask: Task<Void, Never>?
     private var externalHeartRateSession: AnyObject?
     private var externalHeartRateLatest: Double?
+    private var externalHeartRateSamples: [WorkoutHealthMetricSample] = []
     private var simulationTask: Task<Void, Never>?
     private var simulator = DebugWorkoutSimulator()
     private var useSimulation: Bool {
@@ -366,7 +367,17 @@ final class WorkoutSessionViewModel: ObservableObject {
                     .startTracking()
             }
 
-            if useSimulation { startSimulation() } else { startHealthObservation() }
+            if useSimulation {
+                startSimulation()
+            } else {
+                startHealthObservation()
+                if #available(iOS 26.0, *), healthKitManager is HealthKitManager {
+                    let requestedID = sessionID
+                    Task { [weak self] in
+                        await self?.startExternalHeartRate(for: requestedID)
+                    }
+                }
+            }
             startCheckpointLoop()
             needsRuntimeRestart = false
         }
@@ -425,13 +436,19 @@ final class WorkoutSessionViewModel: ObservableObject {
             }
         }
 
+        // Include external BPM observations that may not be written to HealthKit.
+        var completeHealthData = healthData
+        completeHealthData.samples = mergeHealthSamples(
+            completeHealthData.samples, externalHeartRateSamples
+        )
+
         let session = makeSession(
             id: finalSessionID,
             startDate: startDate,
             endDate: endDate,
             activeDuration:
                 activeDuration,
-            healthData: healthData,
+            healthData: completeHealthData,
             routePoints:
                 finalRoutePoints,
             strengthExerciseRecords:
@@ -861,6 +878,9 @@ final class WorkoutSessionViewModel: ObservableObject {
                     checkpointHealth.samples
                 )
             }
+            checkpointHealth.samples = mergeHealthSamples(
+                checkpointHealth.samples, externalHeartRateSamples
+            )
             liveHealthData = checkpointHealth
         }
 
@@ -916,6 +936,9 @@ final class WorkoutSessionViewModel: ObservableObject {
         openPauseStartDate = nil
         recoveredHealthData =
             session.health
+        externalHeartRateSamples = session.health.samples.filter {
+            $0.metric == .heartRate && $0.sourceName == "External Heart Rate"
+        }
         // Re-query the final minute of the restored session; retain all
         // previously checkpointed samples even if HealthKit returns a subset.
         lastPersistedHealthQueryEnd = session.health.samples
@@ -1102,6 +1125,18 @@ final class WorkoutSessionViewModel: ObservableObject {
                           self.externalHeartRateSession === collector else { break }
                     self.externalHeartRateLatest = bpm
                     self.heartRate = bpm
+                    guard bpm.isFinite, bpm > 0 else { continue }
+                    let measuredAt = Date()
+                    self.externalHeartRateSamples.append(
+                        WorkoutHealthMetricSample(
+                            metric: .heartRate,
+                            startDate: measuredAt,
+                            endDate: measuredAt,
+                            value: bpm,
+                            unit: "count/min",
+                            sourceName: "External Heart Rate"
+                        )
+                    )
                 }
             }
         } catch {
