@@ -34,6 +34,10 @@ let package = Package(
         .package(
             url: "https://github.com/iosdevbyul/WakTrainerServiceWorkoutStorage",
             branch: "main"
+        ),
+        .package(
+            url: "https://github.com/iosdevbyul/TrisMotionKit",
+            revision: "b35e0addde12d02670fd7e33687d411a8858c112"
         )
     ],
     targets: [
@@ -63,6 +67,10 @@ let package = Package(
                 .product(
                     name: "WakTrainerServiceWorkoutStorage",
                     package: "WakTrainerServiceWorkoutStorage"
+                ),
+                .product(
+                    name: "TrisMotionKit",
+                    package: "TrisMotionKit"
                 )
             ]
         ),
