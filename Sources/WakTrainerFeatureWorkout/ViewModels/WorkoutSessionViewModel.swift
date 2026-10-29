@@ -843,10 +843,14 @@ final class WorkoutSessionViewModel: ObservableObject {
             if checkpointHealth.summary.averageHeartRate == nil {
                 checkpointHealth.summary.averageHeartRate = nonZero(heartRate)
             }
-            // A transient HealthKit query failure must not discard samples
-            // recovered from an earlier saved checkpoint.
-            if let recoveredHealthData, checkpointHealth.samples.isEmpty {
-                checkpointHealth.samples = recoveredHealthData.samples
+            // A partial HealthKit response may contain some new samples but
+            // omit the pre-relaunch interval. Always retain the persisted
+            // history, even when the new query is nonempty.
+            if let recoveredHealthData {
+                checkpointHealth.samples = mergeHealthSamples(
+                    recoveredHealthData.samples,
+                    checkpointHealth.samples
+                )
             }
             liveHealthData = checkpointHealth
         }
@@ -872,6 +876,9 @@ final class WorkoutSessionViewModel: ObservableObject {
                 .saveCheckpoint(
                     checkpoint
                 )
+            // Carry forward successfully persisted samples across subsequent
+            // checkpoints, including additional app relaunches.
+            recoveredHealthData = liveHealthData
             storageError = nil
         } catch {
             storageError =
@@ -1186,10 +1193,16 @@ final class WorkoutSessionViewModel: ObservableObject {
             recovered.summary.maximumHeartRate, complete.summary.maximumHeartRate
         )
 
-        // Fetches may return different sample IDs for the same observation.
-        // Deduplicate using the measured content rather than the generated ID.
+        merged.samples = mergeHealthSamples(recovered.samples, complete.samples)
+        return merged
+    }
+
+    private func mergeHealthSamples(
+        _ previous: [WorkoutHealthMetricSample],
+        _ current: [WorkoutHealthMetricSample]
+    ) -> [WorkoutHealthMetricSample] {
         var seen = Set<String>()
-        merged.samples = (recovered.samples + complete.samples)
+        return (previous + current)
             .filter { sample in
                 let key = [
                     sample.metric.rawValue,
@@ -1203,7 +1216,6 @@ final class WorkoutSessionViewModel: ObservableObject {
                 return seen.insert(key).inserted
             }
             .sorted { $0.startDate < $1.startDate }
-        return merged
     }
 
     private func sumOptional(
