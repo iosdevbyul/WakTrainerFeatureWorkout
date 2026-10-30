@@ -380,12 +380,6 @@ struct WorkoutSessionView: View {
 
             ScrollView {
                 VStack(spacing: 16) {
-                    if !viewModel
-                        .completedStrengthExerciseRecords
-                        .isEmpty {
-                        completedExercisesCard
-                    }
-
                     if let activeExercise =
                             viewModel
                                 .activeStrengthExercise {
@@ -409,6 +403,10 @@ struct WorkoutSessionView: View {
                                 viewModel,
                             weightUnit: weightUnit
                         )
+                    }
+
+                    if !viewModel.completedStrengthExerciseRecords.isEmpty {
+                        completedExercisesCard
                     }
 
                     WorkoutTrackerView(
@@ -598,8 +596,12 @@ struct WorkoutSessionView: View {
             alignment: .leading,
             spacing: 10
         ) {
-            Text("Other Exercises")
+            Text("Switch Exercise")
                 .font(.headline)
+
+            Text("Alternate between exercises without losing completed sets.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
             ForEach(
                 viewModel
@@ -642,15 +644,18 @@ struct WorkoutSessionView: View {
 
                     if let exerciseID = record.exerciseID,
                        let equipment = record.strengthEquipment {
-                        Button("Resume") {
+                        Button {
+                            guard viewModel.timerState != .idle else { return }
                             let definition = StrengthExerciseDefinition(
                                 id: exerciseID,
                                 name: record.name,
                                 supportedEquipment: [equipment]
                             )
                             _ = viewModel.beginStrengthExercise(definition, equipment: equipment)
+                        } label: {
+                            Label("Switch", systemImage: "arrow.left.arrow.right")
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.borderedProminent)
                         .disabled(viewModel.timerState == .idle)
                     } else {
                         Image(systemName: "checkmark.circle.fill")
