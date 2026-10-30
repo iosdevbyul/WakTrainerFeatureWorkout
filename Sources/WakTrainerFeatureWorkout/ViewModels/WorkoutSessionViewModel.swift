@@ -695,9 +695,6 @@ final class WorkoutSessionViewModel: ObservableObject {
         }
 
         strengthSets.remove(at: index)
-        for position in strengthSets.indices {
-            strengthSets[position].setNumber = position + 1
-        }
 
         Task { await saveCheckpoint() }
         return true
