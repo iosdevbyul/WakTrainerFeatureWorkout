@@ -133,6 +133,8 @@ final class WorkoutSessionViewModel: ObservableObject {
     private var externalHeartRateTask: Task<Void, Never>?
     private var externalHeartRateSession: AnyObject?
     private var externalHeartRateLatest: Double?
+    private var externalHeartRateLastReceivedAt: Date?
+    private let externalHeartRateFreshnessInterval: TimeInterval = 15
     private let pedometer: any PedometerServing = PedometerService()
     private var externalHeartRateSamples: [WorkoutHealthMetricSample] = []
     private var simulationTask: Task<Void, Never>?
@@ -799,6 +801,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         storageError = nil
         healthSampleEndDates = [:]
         externalHeartRateLatest = nil
+        externalHeartRateLastReceivedAt = nil
 
         restTimerManager.stop()
         isResting = false
@@ -1167,10 +1170,11 @@ final class WorkoutSessionViewModel: ObservableObject {
                     guard !Task.isCancelled, let self else { break }
                     guard self.sessionID == requestedID,
                           self.externalHeartRateSession === collector else { break }
-                    self.externalHeartRateLatest = bpm
-                    self.heartRate = bpm
                     guard bpm.isFinite, bpm > 0 else { continue }
                     let measuredAt = Date()
+                    self.externalHeartRateLatest = bpm
+                    self.externalHeartRateLastReceivedAt = measuredAt
+                    self.heartRate = bpm
                     self.externalHeartRateSamples.append(
                         WorkoutHealthMetricSample(
                             metric: .heartRate,
@@ -1230,8 +1234,13 @@ final class WorkoutSessionViewModel: ObservableObject {
                 }
 
                 self.healthSampleEndDates = snapshot.sampleEndDates
-                self.heartRate =
-                    self.externalHeartRateLatest ?? snapshot.heartRate
+                if let external = self.externalHeartRateLatest,
+                   let receivedAt = self.externalHeartRateLastReceivedAt,
+                   Date().timeIntervalSince(receivedAt) <= self.externalHeartRateFreshnessInterval {
+                    self.heartRate = external
+                } else {
+                    self.heartRate = snapshot.heartRate
+                }
                 self.activeCalories =
                     self
                         .recoveredActiveCaloriesBase
