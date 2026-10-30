@@ -129,6 +129,7 @@ final class WorkoutSessionViewModel: ObservableObject {
 
     // MARK: - Private
 
+    var onLiveMetricsUpdated: (() -> Void)?
     private var healthTask: Task<Void, Never>?
     private var externalHeartRateTask: Task<Void, Never>?
     private var externalHeartRateSession: AnyObject?
@@ -1175,6 +1176,7 @@ final class WorkoutSessionViewModel: ObservableObject {
                     self.externalHeartRateLatest = bpm
                     self.externalHeartRateLastReceivedAt = measuredAt
                     self.heartRate = bpm
+                    self.onLiveMetricsUpdated?()
                     self.externalHeartRateSamples.append(
                         WorkoutHealthMetricSample(
                             metric: .heartRate,
@@ -1253,6 +1255,7 @@ final class WorkoutSessionViewModel: ObservableObject {
                     self
                         .recoveredDistanceBase
                     + snapshot.distance
+                self.onLiveMetricsUpdated?()
             }
         }
     }
