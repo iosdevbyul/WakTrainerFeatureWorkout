@@ -1141,7 +1141,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         do {
             let stream = try await collector.start()
             guard requestedID == sessionID, timerState != .idle else {
-                try? await collector.stop()
+                try? await collector.stop(saveToHealthKit: UserDefaults.standard.bool(forKey: "WakTrainer.saveWorkoutsToAppleHealth"))
                 if externalHeartRateSession === collector {
                     externalHeartRateSession = nil
                 }
@@ -1189,7 +1189,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         }
         externalHeartRateSession = nil
         do {
-            try await collector.stop()
+            try await collector.stop(saveToHealthKit: UserDefaults.standard.bool(forKey: "WakTrainer.saveWorkoutsToAppleHealth"))
         } catch {
             healthDataCollectionError = "External heart rate session could not finish: \(error.localizedDescription)"
         }
