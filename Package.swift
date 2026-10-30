@@ -29,7 +29,7 @@ let package = Package(
         ),
         .package(
             url: "https://github.com/iosdevbyul/WakTrainerServiceHealthKit",
-            branch: "feat/optional-healthkit-workout-storage"
+            branch: "main"
         ),
         .package(
             url: "https://github.com/iosdevbyul/WakTrainerServiceWorkoutStorage",
