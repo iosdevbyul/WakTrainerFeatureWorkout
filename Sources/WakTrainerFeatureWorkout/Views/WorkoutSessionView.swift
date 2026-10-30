@@ -118,6 +118,24 @@ struct WorkoutSessionView: View {
             }
         }
         .onAppear {
+            viewModel.onLiveMetricsUpdated = { [weak viewModel] in
+                guard let viewModel, viewModel.timerState != .idle else { return }
+                let completed = viewModel.completedStrengthExerciseRecords.reduce(0) {
+                    $0 + $1.strengthSets.filter(\.isCompleted).count
+                } + viewModel.strengthSets.filter(\.isCompleted).count
+                onWorkoutUpdate?(WorkoutLiveSnapshot(
+                    kind: workout.category == .strength ? .strength : .cardio,
+                    phase: viewModel.timerState == .running ? .running : .paused,
+                    workoutName: workout.name,
+                    elapsedSeconds: viewModel.elapsedTime,
+                    heartRateBPM: viewModel.heartRate,
+                    activeCalories: viewModel.activeCalories,
+                    distanceMeters: viewModel.distanceMeters,
+                    steps: viewModel.stepCount,
+                    currentExerciseName: viewModel.activeStrengthExercise?.name,
+                    completedSets: completed
+                ))
+            }
             viewModel.resumeRecoveredWorkoutIfNeeded()
             guard workout.category == .strength,
                   viewModel.timerState == .idle,
