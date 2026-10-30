@@ -70,6 +70,8 @@ struct StrengthSetRecorderView: View {
                                  requiresWeight: requiresWeightInput) { weight, reps, warmup in
                 viewModel.updateStrengthSet(id: set.id, weightKilograms: weight,
                                             repetitions: reps, isWarmup: warmup)
+            } onDelete: {
+                viewModel.deleteStrengthSet(id: set.id)
             }
         }
         .onChange(
@@ -455,17 +457,21 @@ private struct StrengthSetEditSheet: View {
     let weightUnit: WorkoutWeightUnit
     let requiresWeight: Bool
     let onSave: (Double?, Int, Bool) -> Bool
+    let onDelete: () -> Bool
+    @State private var showDeleteConfirmation = false
 
     @State private var weight: String
     @State private var reps: String
     @State private var warmup: Bool
 
     init(set: StrengthSetRecord, weightUnit: WorkoutWeightUnit,
-         requiresWeight: Bool, onSave: @escaping (Double?, Int, Bool) -> Bool) {
+         requiresWeight: Bool, onSave: @escaping (Double?, Int, Bool) -> Bool,
+         onDelete: @escaping () -> Bool) {
         self.set = set
         self.weightUnit = weightUnit
         self.requiresWeight = requiresWeight
         self.onSave = onSave
+        self.onDelete = onDelete
         _weight = State(initialValue: set.weightKilograms.map {
             String(format: "%.1f", weightUnit.fromKilograms($0))
         } ?? "")
@@ -482,8 +488,21 @@ private struct StrengthSetEditSheet: View {
                 }
                 TextField("Repetitions", text: $reps).keyboardType(.numberPad)
                 Toggle("Warm-up Set", isOn: $warmup)
+                Section {
+                    Button("Delete Set", role: .destructive) {
+                        showDeleteConfirmation = true
+                    }
+                }
             }
             .navigationTitle("Edit Set \(set.setNumber)")
+            .confirmationDialog("Delete this set?", isPresented: $showDeleteConfirmation) {
+                Button("Delete Set", role: .destructive) {
+                    if onDelete() { dismiss() }
+                }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text("This removes the set from your workout record.")
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
