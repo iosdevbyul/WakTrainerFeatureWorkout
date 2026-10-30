@@ -687,6 +687,23 @@ final class WorkoutSessionViewModel: ObservableObject {
     }
 
     @discardableResult
+    func deleteStrengthSet(id: UUID) -> Bool {
+        guard workout.category == .strength,
+              timerState != .idle,
+              let index = strengthSets.firstIndex(where: { $0.id == id }) else {
+            return false
+        }
+
+        strengthSets.remove(at: index)
+        for position in strengthSets.indices {
+            strengthSets[position].setNumber = position + 1
+        }
+
+        Task { await saveCheckpoint() }
+        return true
+    }
+
+    @discardableResult
     func finishRestAndStartNextSet()
         -> Bool {
         guard workout.category == .strength,
