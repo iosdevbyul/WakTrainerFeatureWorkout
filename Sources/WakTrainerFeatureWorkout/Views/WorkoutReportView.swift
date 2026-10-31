@@ -8,6 +8,12 @@ import WakTrainerServiceLocation
 struct WorkoutReportView: View {
 
     @StateObject private var viewModel: WorkoutReportViewModel
+    @State private var routeDisplayMode: RouteDisplayMode = .speed
+
+    private enum RouteDisplayMode: String, CaseIterable {
+        case speed = "Speed"
+        case heartRate = "Heart Rate Zone"
+    }
 
     private let weightUnit: WorkoutWeightUnit
     private let onDone: () -> Void
@@ -402,9 +408,16 @@ struct WorkoutReportView: View {
                 }
             }
 
+            Picker("Route Color", selection: $routeDisplayMode) {
+                ForEach(RouteDisplayMode.allCases, id: \.self) { mode in
+                    Text(mode.rawValue).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+
             WorkoutMapView(
-                routePoints:
-                    viewModel.session.route
+                routePoints: viewModel.session.route,
+                zoneLevels: routeDisplayMode == .heartRate ? routeHeartRateZoneLevels : nil
             )
             .frame(height: 260)
             .clipShape(
@@ -412,6 +425,47 @@ struct WorkoutReportView: View {
                     cornerRadius: 16
                 )
             )
+
+            if routeDisplayMode == .heartRate {
+                HStack(spacing: 12) {
+                    ForEach(1...5, id: \.self) { zone in
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(heartZoneColor(zone))
+                                .frame(width: 8, height: 8)
+                            Text("Z\(zone)")
+                                .font(.caption2)
+                        }
+                    }
+                }
+                Text("Gray segments have no nearby heart rate measurement.")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    /// Align each GPS interval with the nearest timestamped heart-rate sample.
+    /// Missing or stale readings never produce a fabricated zone.
+    private var routeHeartRateZoneLevels: [Int?] {
+        let points = viewModel.session.route
+        guard points.count >= 2 else { return [] }
+        let boundaries = viewModel.report.heart.zones.compactMap(\.upperBoundBPM).sorted()
+        let samples = viewModel.heartRateSamples
+            .filter { $0.value.isFinite && $0.value > 0 }
+            .sorted { $0.startDate < $1.startDate }
+        guard boundaries.count == 4, !samples.isEmpty else {
+            return Array(repeating: nil, count: points.count - 1)
+        }
+
+        return (0..<(points.count - 1)).map { index -> Int? in
+            let midpoint = points[index].timestamp.addingTimeInterval(
+                points[index + 1].timestamp.timeIntervalSince(points[index].timestamp) / 2
+            )
+            guard let nearest = samples.min(by: {
+                abs($0.startDate.timeIntervalSince(midpoint)) < abs($1.startDate.timeIntervalSince(midpoint))
+            }), abs(nearest.startDate.timeIntervalSince(midpoint)) <= 30 else { return nil }
+            return boundaries.filter { nearest.value >= $0 }.count + 1
         }
     }
 
