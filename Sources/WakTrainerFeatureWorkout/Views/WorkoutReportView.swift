@@ -314,7 +314,7 @@ struct WorkoutReportView: View {
                     spacing: 12
                 ) {
                     reportMetric(
-                        title: "Distance",
+                        title: "Workout Distance",
                         value: formatDistance(
                             cardio.distanceMeters
                         )
@@ -372,6 +372,10 @@ struct WorkoutReportView: View {
                         )
                     )
                 }
+
+                Text("Workout distance prefers recorded health distance; GPS distance is calculated from the route.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 if viewModel.session.route.count >= 2 {
                     routeMapSection(cardio)
@@ -445,11 +449,12 @@ struct WorkoutReportView: View {
         }
     }
 
-    /// Align each GPS interval with the nearest timestamped heart-rate sample.
-    /// Missing or stale readings never produce a fabricated zone.
+    /// Match GPS intervals against observed heart-rate timestamps. Interpolate only
+    /// across bounded gaps; never assign a zone across an extended sensor outage.
     private var routeHeartRateZoneLevels: [Int?] {
         let points = viewModel.session.route
         guard points.count >= 2 else { return [] }
+
         let boundaries = viewModel.report.heart.zones.compactMap(\.upperBoundBPM).sorted()
         let samples = viewModel.heartRateSamples
             .filter { $0.value.isFinite && $0.value > 0 }
@@ -459,13 +464,48 @@ struct WorkoutReportView: View {
         }
 
         return (0..<(points.count - 1)).map { index -> Int? in
-            let midpoint = points[index].timestamp.addingTimeInterval(
-                points[index + 1].timestamp.timeIntervalSince(points[index].timestamp) / 2
-            )
-            guard let nearest = samples.min(by: {
-                abs($0.startDate.timeIntervalSince(midpoint)) < abs($1.startDate.timeIntervalSince(midpoint))
-            }), abs(nearest.startDate.timeIntervalSince(midpoint)) <= 30 else { return nil }
-            return boundaries.filter { nearest.value >= $0 }.count + 1
+            let start = points[index].timestamp
+            let end = points[index + 1].timestamp
+            guard end >= start else { return nil }
+            let midpoint = start.addingTimeInterval(end.timeIntervalSince(start) / 2)
+
+            // Binary search finds the first reading at or after the GPS midpoint.
+            var lower = 0
+            var upper = samples.count
+            while lower < upper {
+                let middle = (lower + upper) / 2
+                if samples[middle].startDate < midpoint {
+                    lower = middle + 1
+                } else {
+                    upper = middle
+                }
+            }
+
+            let previous = lower > 0 ? samples[lower - 1] : nil
+            let next = lower < samples.count ? samples[lower] : nil
+            let bpm: Double?
+
+            if let previous, let next {
+                let gap = next.startDate.timeIntervalSince(previous.startDate)
+                if gap > 0, gap <= 120 {
+                    let fraction = midpoint.timeIntervalSince(previous.startDate) / gap
+                    bpm = previous.value + (next.value - previous.value) * fraction
+                } else {
+                    let before = abs(midpoint.timeIntervalSince(previous.startDate))
+                    let after = abs(next.startDate.timeIntervalSince(midpoint))
+                    bpm = min(before, after) <= 30
+                        ? (before <= after ? previous.value : next.value)
+                        : nil
+                }
+            } else if let nearest = previous ?? next,
+                      abs(nearest.startDate.timeIntervalSince(midpoint)) <= 30 {
+                bpm = nearest.value
+            } else {
+                bpm = nil
+            }
+
+            guard let bpm else { return nil }
+            return boundaries.filter { bpm >= $0 }.count + 1
         }
     }
 
