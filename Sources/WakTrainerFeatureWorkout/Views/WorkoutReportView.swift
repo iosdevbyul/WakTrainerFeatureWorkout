@@ -314,7 +314,7 @@ struct WorkoutReportView: View {
                     spacing: 12
                 ) {
                     reportMetric(
-                        title: "Distance (Health)",
+                        title: "Workout Distance",
                         value: formatDistance(
                             cardio.distanceMeters
                         )
@@ -372,6 +372,10 @@ struct WorkoutReportView: View {
                         )
                     )
                 }
+
+                Text("Workout distance prefers recorded health distance; GPS distance is calculated from the route.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 if viewModel.session.route.count >= 2 {
                     routeMapSection(cardio)
