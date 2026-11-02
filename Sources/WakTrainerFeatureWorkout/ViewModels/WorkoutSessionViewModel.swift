@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import os
 import CoreLocation
 import TrisMotionKit
 import WakTrainerCoreModels
@@ -137,6 +138,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     private var observedHealthHeartRate: Double = 0
     private var externalHeartRateLastReceivedAt: Date?
     private let externalHeartRateFreshnessInterval: TimeInterval = 15
+    private let workoutSessionLogger = Logger(subsystem: "WakTrainerFeatureWorkout", category: "HeartRateSession")
 
     static func freshObservedHeartRate(
         _ value: Double,
@@ -1188,10 +1190,12 @@ final class WorkoutSessionViewModel: ObservableObject {
               timerState != .idle else { return }
 
         if currentObservedHeartRate > 0 {
+            workoutSessionLogger.info("Fresh HealthKit heart rate available; skipping external workout session")
             // Keep the read-only observation pipeline; do not start
             // an unnecessary workout session while samples are fresh.
             return
         }
+        workoutSessionLogger.info("No fresh observed heart rate after grace period; requesting app-owned external session")
         await startExternalHeartRate(for: requestedID)
     }
 
@@ -1201,10 +1205,12 @@ final class WorkoutSessionViewModel: ObservableObject {
               timerState != .idle,
               requestedID == sessionID,
               externalHeartRateSession == nil else { return }
+        workoutSessionLogger.info("Starting app-owned external heart rate collector")
         let collector = ExternalHeartRateWorkoutSession()
         externalHeartRateSession = collector
         do {
             let stream = try await collector.start()
+            workoutSessionLogger.info("External heart rate collector started")
             guard requestedID == sessionID, timerState != .idle else {
                 try? await collector.stop(saveToHealthKit: UserDefaults.standard.bool(forKey: "WakTrainer.saveWorkoutsToAppleHealth"))
                 if externalHeartRateSession === collector {
@@ -1243,6 +1249,7 @@ final class WorkoutSessionViewModel: ObservableObject {
                     self.externalHeartRateLatest = nil
                     self.externalHeartRateLastReceivedAt = nil
                     self.heartRate = self.currentObservedHeartRate
+                    self.workoutSessionLogger.warning("External heart rate stream ended; preserving workout and falling back to HealthKit observations")
                     self.onLiveMetricsUpdated?()
                 }
             }
@@ -1254,6 +1261,7 @@ final class WorkoutSessionViewModel: ObservableObject {
                 heartRate = currentObservedHeartRate
                 onLiveMetricsUpdated?()
             }
+            workoutSessionLogger.error("External heart rate collector unavailable: \(error.localizedDescription, privacy: .public)")
             // An unavailable sensor must never prevent a workout from starting.
             healthDataCollectionError = "External heart rate unavailable: \(error.localizedDescription)"
         }
