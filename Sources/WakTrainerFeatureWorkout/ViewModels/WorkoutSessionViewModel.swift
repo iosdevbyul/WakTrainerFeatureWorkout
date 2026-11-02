@@ -334,7 +334,7 @@ final class WorkoutSessionViewModel: ObservableObject {
                 if healthKitManager is HealthKitManager {
                     let requestedID = sessionID
                     Task { [weak self] in
-                        await self?.startExternalHeartRate(for: requestedID)
+                        await self?.startExternalHeartRateAfterObservationGracePeriod(for: requestedID)
                     }
                 }
             }
@@ -380,7 +380,7 @@ final class WorkoutSessionViewModel: ObservableObject {
                 if #available(iOS 26.0, *), healthKitManager is HealthKitManager {
                     let requestedID = sessionID
                     Task { [weak self] in
-                        await self?.startExternalHeartRate(for: requestedID)
+                        await self?.startExternalHeartRateAfterObservationGracePeriod(for: requestedID)
                     }
                 }
             }
@@ -1149,6 +1149,32 @@ final class WorkoutSessionViewModel: ObservableObject {
     }
 
     // MARK: - External iPhone heart rate (AirPods Pro 3 / iOS 26+)
+
+    // Prefer already observed HealthKit data before opening a competing
+    // iPhone workout session. This cannot detect third-party workouts.
+    @available(iOS 26.0, *)
+    private func startExternalHeartRateAfterObservationGracePeriod(
+        for requestedID: UUID
+    ) async {
+        do {
+            try await Task.sleep(for: .seconds(8))
+        } catch {
+            return
+        }
+        guard !Task.isCancelled,
+              requestedID == sessionID,
+              timerState != .idle else { return }
+
+        if observedHealthHeartRate > 0,
+           let lastSample = healthSampleEndDates[.heartRate],
+           Date().timeIntervalSince(lastSample) >= 0,
+           Date().timeIntervalSince(lastSample) <= externalHeartRateFreshnessInterval {
+            // Keep the read-only observation pipeline; do not start
+            // an unnecessary workout session while samples are fresh.
+            return
+        }
+        await startExternalHeartRate(for: requestedID)
+    }
 
     @available(iOS 26.0, *)
     private func startExternalHeartRate(for requestedID: UUID) async {
