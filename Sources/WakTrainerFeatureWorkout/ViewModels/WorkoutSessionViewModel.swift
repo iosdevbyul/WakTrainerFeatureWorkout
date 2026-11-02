@@ -137,6 +137,28 @@ final class WorkoutSessionViewModel: ObservableObject {
     private var observedHealthHeartRate: Double = 0
     private var externalHeartRateLastReceivedAt: Date?
     private let externalHeartRateFreshnessInterval: TimeInterval = 15
+
+    static func freshObservedHeartRate(
+        _ value: Double,
+        measuredAt: Date?,
+        now: Date,
+        maxAge: TimeInterval = 15
+    ) -> Double {
+        guard value.isFinite, value > 0,
+              let measuredAt,
+              now.timeIntervalSince(measuredAt) >= 0,
+              now.timeIntervalSince(measuredAt) <= maxAge else { return 0 }
+        return value
+    }
+
+    private var currentObservedHeartRate: Double {
+        Self.freshObservedHeartRate(
+            observedHealthHeartRate,
+            measuredAt: healthSampleEndDates[.heartRate],
+            now: Date(),
+            maxAge: externalHeartRateFreshnessInterval
+        )
+    }
     private let pedometer: any PedometerServing = PedometerService()
     private var externalHeartRateSamples: [WorkoutHealthMetricSample] = []
     private var simulationTask: Task<Void, Never>?
@@ -1165,10 +1187,7 @@ final class WorkoutSessionViewModel: ObservableObject {
               requestedID == sessionID,
               timerState != .idle else { return }
 
-        if observedHealthHeartRate > 0,
-           let lastSample = healthSampleEndDates[.heartRate],
-           Date().timeIntervalSince(lastSample) >= 0,
-           Date().timeIntervalSince(lastSample) <= externalHeartRateFreshnessInterval {
+        if currentObservedHeartRate > 0 {
             // Keep the read-only observation pipeline; do not start
             // an unnecessary workout session while samples are fresh.
             return
@@ -1223,7 +1242,7 @@ final class WorkoutSessionViewModel: ObservableObject {
                    self.externalHeartRateSession === collector {
                     self.externalHeartRateLatest = nil
                     self.externalHeartRateLastReceivedAt = nil
-                    self.heartRate = self.observedHealthHeartRate
+                    self.heartRate = self.currentObservedHeartRate
                     self.onLiveMetricsUpdated?()
                 }
             }
@@ -1232,7 +1251,7 @@ final class WorkoutSessionViewModel: ObservableObject {
                 externalHeartRateSession = nil
                 externalHeartRateLatest = nil
                 externalHeartRateLastReceivedAt = nil
-                heartRate = observedHealthHeartRate
+                heartRate = currentObservedHeartRate
                 onLiveMetricsUpdated?()
             }
             // An unavailable sensor must never prevent a workout from starting.
@@ -1285,7 +1304,7 @@ final class WorkoutSessionViewModel: ObservableObject {
                    Date().timeIntervalSince(receivedAt) <= self.externalHeartRateFreshnessInterval {
                     self.heartRate = external
                 } else {
-                    self.heartRate = snapshot.heartRate
+                    self.heartRate = self.currentObservedHeartRate
                 }
                 self.activeCalories =
                     self
