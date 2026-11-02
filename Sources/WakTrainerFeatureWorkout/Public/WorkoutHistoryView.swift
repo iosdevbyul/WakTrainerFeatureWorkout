@@ -21,15 +21,17 @@ public struct WorkoutHistoryView: View {
     private var hasAppeared = false
 
     private var historyReloadKey: String {
-        "\(selectedDate?.timeIntervalSince1970.description ?? "all")-\(timeZoneRevision)"
+        "\(selectedDate?.timeIntervalSince1970.description ?? "all")-\(selectedSessionID?.uuidString ?? "none")-\(timeZoneRevision)"
     }
 
     private let selectedDate: Date?
+    private let selectedSessionID: UUID?
     private let maximumHeartRate: Double?
     private let sessionRepository: (any WorkoutSessionRepository)?
 
     public init(
         selectedDate: Date? = nil,
+        selectedSessionID: UUID? = nil,
         maximumHeartRate: Double? = nil,
         ownerUserID: UUID? = nil
     ) {
@@ -38,6 +40,7 @@ public struct WorkoutHistoryView: View {
 
         self.init(
             selectedDate: selectedDate,
+            selectedSessionID: selectedSessionID,
             maximumHeartRate:
                 maximumHeartRate,
             sessionRepository: repository
@@ -46,12 +49,14 @@ public struct WorkoutHistoryView: View {
 
     init(
         selectedDate: Date?,
+        selectedSessionID: UUID? = nil,
         maximumHeartRate: Double?,
         sessionRepository:
             (any WorkoutSessionRepository)?
     ) {
         self.sessionRepository = sessionRepository
         self.selectedDate = selectedDate
+        self.selectedSessionID = selectedSessionID
         self.maximumHeartRate =
             maximumHeartRate
 
@@ -210,6 +215,12 @@ private extension WorkoutHistoryView {
     }
 
     func openSingleWorkoutIfNeeded() {
+        if let selectedSessionID {
+            automaticReportSession = viewModel.sessions.first(where: {
+                $0.session.id == selectedSessionID
+            })?.session
+            return
+        }
         guard selectedDate != nil,
               viewModel.sessions.count == 1 else {
             return
