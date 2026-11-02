@@ -1188,10 +1188,21 @@ final class WorkoutSessionViewModel: ObservableObject {
                         )
                     )
                 }
+                // External collection may end without ending the workout.
+                // HealthKit observation and route tracking remain active.
+                if let self,
+                   self.sessionID == requestedID,
+                   self.externalHeartRateSession === collector {
+                    self.externalHeartRateLatest = nil
+                    self.externalHeartRateLastReceivedAt = nil
+                    self.onLiveMetricsUpdated?()
+                }
             }
         } catch {
             if externalHeartRateSession === collector {
                 externalHeartRateSession = nil
+                externalHeartRateLatest = nil
+                externalHeartRateLastReceivedAt = nil
             }
             // An unavailable sensor must never prevent a workout from starting.
             healthDataCollectionError = "External heart rate unavailable: \(error.localizedDescription)"
@@ -1203,6 +1214,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         externalHeartRateTask?.cancel()
         externalHeartRateTask = nil
         externalHeartRateLatest = nil
+        externalHeartRateLastReceivedAt = nil
         guard let collector = externalHeartRateSession as? ExternalHeartRateWorkoutSession else {
             externalHeartRateSession = nil
             return
