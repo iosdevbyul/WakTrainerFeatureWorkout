@@ -8,13 +8,6 @@ import WakTrainerServiceLocation
 struct WorkoutReportView: View {
 
     @StateObject private var viewModel: WorkoutReportViewModel
-    @State private var routeDisplayMode: RouteDisplayMode = .speed
-
-    private enum RouteDisplayMode: String, CaseIterable {
-        case speed = "Speed"
-        case heartRate = "Heart Rate Zone"
-    }
-
     private let weightUnit: WorkoutWeightUnit
     private let onDone: () -> Void
 
@@ -412,41 +405,65 @@ struct WorkoutReportView: View {
                 }
             }
 
-            Picker("Route Color", selection: $routeDisplayMode) {
-                ForEach(RouteDisplayMode.allCases, id: \.self) { mode in
-                    Text(mode.rawValue).tag(mode)
-                }
-            }
-            .pickerStyle(.segmented)
+            Text("Speed")
+                .font(.subheadline.weight(.semibold))
+
+            WorkoutMapView(routePoints: viewModel.session.route)
+                .frame(height: 260)
+                .clipShape(RoundedRectangle(cornerRadius: 16))
+
+            speedRouteLegend
+
+            Text("Heart Rate Zone")
+                .font(.subheadline.weight(.semibold))
+                .padding(.top, 10)
 
             WorkoutMapView(
                 routePoints: viewModel.session.route,
-                zoneLevels: routeDisplayMode == .heartRate ? routeHeartRateZoneLevels : nil
+                zoneLevels: routeHeartRateZoneLevels
             )
             .frame(height: 260)
-            .clipShape(
-                RoundedRectangle(
-                    cornerRadius: 16
-                )
-            )
+            .clipShape(RoundedRectangle(cornerRadius: 16))
 
-            if routeDisplayMode == .heartRate {
-                HStack(spacing: 12) {
-                    ForEach(1...5, id: \.self) { zone in
-                        HStack(spacing: 4) {
-                            Circle()
-                                .fill(heartZoneColor(zone))
-                                .frame(width: 8, height: 8)
-                            Text("Z\(zone)")
-                                .font(.caption2)
-                        }
+            HStack(spacing: 12) {
+                ForEach(1...5, id: \.self) { zone in
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(heartZoneColor(zone))
+                            .frame(width: 8, height: 8)
+                        Text("Z\(zone)")
+                            .font(.caption2)
                     }
                 }
-                Text("Gray segments have no nearby heart rate measurement.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+            }
+            Text("Gray segments have no nearby heart rate measurement.")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var speedRouteLegend: some View {
+        let categories: [(String, Color)] = [
+            ("< 3.6", .yellow),
+            ("3.6–6.5", Color(red: 0.9, green: 0.7, blue: 0)),
+            ("6.5–9", .green),
+            ("9–11.9", Color(red: 0, green: 0.6, blue: 0.2)),
+            ("11.9–15.1", Color(red: 1, green: 0.4, blue: 0.4)),
+            ("≥ 15.1", .red)
+        ]
+        return VStack(alignment: .leading, spacing: 6) {
+            Text("Speed (km/h)")
+                .font(.caption.weight(.semibold))
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 100), spacing: 8)], alignment: .leading, spacing: 8) {
+                ForEach(categories, id: \.0) { label, color in
+                    HStack(spacing: 5) {
+                        Circle().fill(color).frame(width: 9, height: 9)
+                        Text(label).font(.caption2)
+                    }
+                }
             }
         }
+        .foregroundStyle(.secondary)
     }
 
     /// Match GPS intervals against observed heart-rate timestamps. Interpolate only
