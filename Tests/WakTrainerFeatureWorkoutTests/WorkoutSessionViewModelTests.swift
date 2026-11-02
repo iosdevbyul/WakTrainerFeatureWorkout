@@ -65,7 +65,8 @@ struct WorkoutSessionViewModelTests {
         }
 
         #expect(received)
-        #expect(viewModel.heartRate == 136)
+        // Historical data retains its timestamp but is not treated as live BPM.
+        #expect(viewModel.heartRate == 0)
         #expect(viewModel.stepCount == 240)
         #expect(viewModel.healthSampleEndDates[.activeEnergyBurned] == nil)
 
