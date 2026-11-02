@@ -19,6 +19,16 @@ import WakTrainerFeatureTimer
 struct WorkoutSessionViewModelTests {
 
     @Test
+    func staleHealthKitHeartRateIsNotReused() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        #expect(WorkoutSessionViewModel.freshObservedHeartRate(120, measuredAt: now.addingTimeInterval(-5), now: now) == 120)
+        #expect(WorkoutSessionViewModel.freshObservedHeartRate(120, measuredAt: now.addingTimeInterval(-30), now: now) == 0)
+        #expect(WorkoutSessionViewModel.freshObservedHeartRate(120, measuredAt: nil, now: now) == 0)
+        #expect(WorkoutSessionViewModel.freshObservedHeartRate(120, measuredAt: now.addingTimeInterval(5), now: now) == 0)
+        #expect(WorkoutSessionViewModel.freshObservedHeartRate(0, measuredAt: now, now: now) == 0)
+    }
+
+    @Test
     func liveHealthSnapshotPreservesOriginalAcquisitionTimes() async {
         let acquiredAt = Date(timeIntervalSince1970: 1_800_000_000)
         let stepsAt = acquiredAt.addingTimeInterval(15)
