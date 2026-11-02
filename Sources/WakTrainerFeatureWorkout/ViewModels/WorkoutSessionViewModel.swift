@@ -1190,7 +1190,8 @@ final class WorkoutSessionViewModel: ObservableObject {
                 }
                 // External collection may end without ending the workout.
                 // HealthKit observation and route tracking remain active.
-                if self.sessionID == requestedID,
+                if let self,
+                   self.sessionID == requestedID,
                    self.externalHeartRateSession === collector {
                     self.externalHeartRateLatest = nil
                     self.externalHeartRateLastReceivedAt = nil
