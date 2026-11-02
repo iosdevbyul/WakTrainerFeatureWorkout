@@ -134,6 +134,7 @@ final class WorkoutSessionViewModel: ObservableObject {
     private var externalHeartRateTask: Task<Void, Never>?
     private var externalHeartRateSession: AnyObject?
     private var externalHeartRateLatest: Double?
+    private var observedHealthHeartRate: Double = 0
     private var externalHeartRateLastReceivedAt: Date?
     private let externalHeartRateFreshnessInterval: TimeInterval = 15
     private let pedometer: any PedometerServing = PedometerService()
@@ -803,6 +804,7 @@ final class WorkoutSessionViewModel: ObservableObject {
         healthSampleEndDates = [:]
         externalHeartRateLatest = nil
         externalHeartRateLastReceivedAt = nil
+        observedHealthHeartRate = 0
 
         restTimerManager.stop()
         isResting = false
@@ -1195,6 +1197,7 @@ final class WorkoutSessionViewModel: ObservableObject {
                    self.externalHeartRateSession === collector {
                     self.externalHeartRateLatest = nil
                     self.externalHeartRateLastReceivedAt = nil
+                    self.heartRate = self.observedHealthHeartRate
                     self.onLiveMetricsUpdated?()
                 }
             }
@@ -1203,6 +1206,8 @@ final class WorkoutSessionViewModel: ObservableObject {
                 externalHeartRateSession = nil
                 externalHeartRateLatest = nil
                 externalHeartRateLastReceivedAt = nil
+                heartRate = observedHealthHeartRate
+                onLiveMetricsUpdated?()
             }
             // An unavailable sensor must never prevent a workout from starting.
             healthDataCollectionError = "External heart rate unavailable: \(error.localizedDescription)"
@@ -1248,6 +1253,7 @@ final class WorkoutSessionViewModel: ObservableObject {
                 }
 
                 self.healthSampleEndDates = snapshot.sampleEndDates
+                self.observedHealthHeartRate = snapshot.heartRate
                 if let external = self.externalHeartRateLatest,
                    let receivedAt = self.externalHeartRateLastReceivedAt,
                    Date().timeIntervalSince(receivedAt) <= self.externalHeartRateFreshnessInterval {
