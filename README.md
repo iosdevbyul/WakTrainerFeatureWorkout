@@ -71,3 +71,7 @@ WorkoutFeatureView(
 ## Ownership boundary
 
 `WakTrainerFeatureWorkout` owns workout UI and workout flow. The host application only decides where the launcher is placed and what to do with the completed `WorkoutSession`.
+
+## Explicit TrisDashboard workout JSON export
+
+The `WorkoutHistoryStore.dashboardExportV2()` API converts **already loaded, completed and owner-scoped** workout history into the version 2 TrisDashboard JSON contract. Each exported workout uses its persisted UUID as the stable session ID, a UTC source timestamp, active workout duration in seconds and the health summary's distance in meters (default 0 if absent). Route points, HR traces and user profile identifiers are deliberately excluded. Invalid durations, distances, unsupported workout IDs and exports exceeding 500 sessions/128 KiB cause an error instead of silently dropping records. Call `await store.reload()` before exporting to get the latest persisted history; exporting does not share or transmit data. The WakTrainerApp user-facing share action is tracked separately.
