@@ -153,6 +153,26 @@ struct WorkoutHistoryStoreTests {
             )
         )
     }
+    @Test("Dashboard v2 export preserves persisted session identity and exact units")
+    func dashboardV2Export() async throws {
+        let session = makeStoredSession(startedAt: Date(timeIntervalSince1970: 1_800_000_000))
+        let store = WorkoutHistoryStore(repositoryProvider: {
+            HistoryStoreMockRepository(sessions: [session])
+        })
+        await store.reload()
+        let data = try store.dashboardExportV2()
+        let object = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        #expect(object["schema_version"] as? Int == 2)
+        let sessions = try #require(object["sessions"] as? [[String: Any]])
+        #expect(sessions.count == 1)
+        #expect(sessions[0]["session_id"] as? String == session.session.id.uuidString.lowercased())
+        #expect(sessions[0]["activity_type"] as? String == "running")
+        #expect(sessions[0]["duration_seconds"] as? Double == 580)
+        #expect(sessions[0]["distance_meters"] as? Double == 0)
+        #expect((sessions[0]["started_at"] as? String)?.hasSuffix("Z") == true)
+        #expect(!String(decoding: data, as: UTF8.self).contains("ownerUserID"))
+    }
+
 }
 
 private extension WorkoutHistoryStoreTests {
